@@ -1,281 +1,337 @@
 <template>
-  <div class="patient-page">
-    <nav class="top-nav">
-      <div class="nav-inner">
-        <span class="logo">MediZentrum</span>
-        <ul class="nav-links">
-          <li><a href="#">Products</a></li>
-          <li><a href="#">Resources</a></li>
-          <li><a href="#">Company</a></li>
-          <li><a href="#" class="btn-demo">Book a Demo</a></li>
-          <li><button class="nav-logout" @click="logout">Logout</button></li>
-        </ul>
-      </div>
-    </nav>
+  <div class="patient-dashboard">
+    <header class="topbar">
+      <div class="brand">MediZentrum</div>
+      <h1 class="page-title">Patients' Dashboard</h1>
+      <button class="btn btn-logout" @click="logout">Logout</button>
+    </header>
 
-    <main class="patient-main">
-      <div class="patient-card">
-        <div class="panel-left">
-          <h2>Patient Dashboard</h2>
-          <p>Welcome back, {{ patient.name || 'Patient' }}.</p>
-          <p>Use this page to see your upcoming appointments and profile summary.</p>
-        </div>
-
-        <div class="panel-right">
-          <h1>Welcome, {{ patient.name || 'Patient' }}</h1>
-          <div v-if="error" class="error-alert">{{ error }}</div>
-          <div v-if="loading" class="info-alert">Loading dashboard...</div>
-
-          <div v-if="!loading && !error">
-            <div class="stats-row">
-              <div class="stat-box">
-                <strong>{{ appointments.length }}</strong>
-                <span>Upcoming appointments</span>
-              </div>
-              <div class="stat-box">
-                <strong>{{ specializations.length }}</strong>
-                <span>Available specializations</span>
-              </div>
-            </div>
-
-            <section class="section-block">
-              <h2>Profile</h2>
-              <div class="profile-grid">
-                <div><strong>Email</strong><p>{{ patient.email }}</p></div>
-                <div><strong>Age</strong><p>{{ patient.age }}</p></div>
-                <div><strong>Gender</strong><p>{{ patient.gender }}</p></div>
-              </div>
-            </section>
-
-            <section class="section-block">
-              <h2>Upcoming Appointments</h2>
-              <div v-if="appointments.length === 0" class="empty-state">
-                No upcoming appointments yet.
-              </div>
-              <ul v-else class="appointments-list">
-                <li v-for="appointment in appointments" :key="appointment.id">
-                  <strong>{{ appointment.doctor_name }}</strong>
-                  <span>{{ appointment.specialization }}</span>
-                  <span>{{ appointment.date }} · {{ appointment.time }}</span>
-                  <span class="status">{{ appointment.status }}</span>
-                </li>
-              </ul>
-            </section>
+    <main class="page-wrapper">
+      <section class="card welcome-card">
+        <div class="welcome-row">
+          <h2 class="section-title">Welcome {{ patient.name }}</h2>
+          <div class="top-links">
+            <button class="link-btn">edit profile</button>
+            <span>|</span>
+            <button class="link-btn">History</button>
+            <span>|</span>
+            <button class="link-btn" @click="logout">logout</button>
           </div>
         </div>
-      </div>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Departments</h2>
+
+        <div class="department-list">
+          <div v-for="(dept, index) in departments" :key="index" class="department-row">
+            <span class="dept-name">{{ dept }}</span>
+            <button class="btn btn-blue">view details</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Upcoming Appointments</h2>
+
+        <div class="table-shell">
+          <table class="appointments-table">
+            <thead>
+              <tr>
+                <th>Sr No.</th>
+                <th>Doctor Name</th>
+                <th>Deptt</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr v-for="(appointment, index) in appointments" :key="appointment.id">
+                <td>{{ 1001 + index }}</td>
+                <td>{{ appointment.doctor }}</td>
+                <td>{{ appointment.department }}</td>
+                <td>{{ appointment.date }}</td>
+                <td>{{ appointment.time }}</td>
+                <td>
+                  <button class="btn btn-outline-red" @click="cancelAppointment(appointment.id)">
+                    cancel
+                  </button>
+                </td>
+              </tr>
+
+              <tr v-if="appointments.length === 0">
+                <td colspan="6" class="empty-cell">No upcoming appointments</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </main>
   </div>
 </template>
 
 <script>
-import axios from 'axios'
-
 export default {
-  name: 'PatientDashboard',
+  name: "PatientDashboard",
   data() {
     return {
-      patient: {},
-      appointments: [],
-      specializations: [],
-      loading: false,
-      error: ''
-    }
-  },
-  mounted() {
-    this.fetchDashboard()
+      patient: {
+        name: "Pqrst",
+        email: "leon@gmail.com"
+      },
+      departments: ["Cardiology", "Oncology", "General"],
+      appointments: [
+        {
+          id: 1,
+          doctor: "Dr. abcde",
+          department: "general",
+          date: "24/09/2025",
+          time: "08 am - 12 pm"
+        }
+      ]
+    };
   },
   methods: {
-    async fetchDashboard() {
-      this.error = ''
-      this.loading = true
-
-      const token = localStorage.getItem('token')
-      if (!token) {
-        return this.$router.push('/login')
-      }
-
-      try {
-        const response = await axios.get('http://127.0.0.1:5000/api/patient/dashboard', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        })
-
-        this.patient = response.data.patient || {}
-        this.appointments = response.data.upcoming_appointments || []
-        this.specializations = response.data.specializations || []
-      } catch (err) {
-        this.error = err.response?.data?.message || err.response?.data?.error || 'Unable to load dashboard.'
-        if (err.response?.status === 401 || err.response?.status === 403) {
-          localStorage.removeItem('token')
-          localStorage.removeItem('role')
-          localStorage.removeItem('user')
-          this.$router.push('/login')
-        }
-      } finally {
-        this.loading = false
-      }
-    },
     logout() {
-      localStorage.removeItem('token')
-      localStorage.removeItem('role')
-      localStorage.removeItem('user')
-      this.$router.push('/login')
+      localStorage.removeItem("token");
+      localStorage.removeItem("role");
+      localStorage.removeItem("user");
+      this.$router.push("/login");
+    },
+    cancelAppointment(id) {
+      this.appointments = this.appointments.filter((appt) => appt.id !== id);
     }
   }
-}
+};
 </script>
 
 <style scoped>
-.patient-main {
-  flex: 1;
+.patient-dashboard {
+  min-height: 100vh;
+  background: #f4f8ff;
+  font-family: Georgia, "Times New Roman", serif;
+  padding-top: 80px;
+}
+
+.topbar {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  height: 60px;
+  background: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem 1rem;
+  border-bottom: 1px solid #eee;
 }
-.patient-card {
-  display: flex;
-  width: 100%;
-  max-width: 860px;
-  border-radius: 1rem;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
-  overflow: hidden;
-  background: #ffffff;
-}
-.panel-left {
-  background: #1a6fd4;
-  padding: 2.5rem 2rem;
-  flex: 0 0 40%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 1rem;
-  color: #ffffff;
-}
-.panel-left h2 {
-  font-size: 1.45rem;
+
+.brand {
+  position: absolute;
+  left: 30px;
+  font-size: 22px;
   font-weight: 700;
+  color: #1f1f1f;
 }
-.panel-left p {
-  font-size: 0.95rem;
-  line-height: 1.7;
-  color: rgba(255,255,255,0.92);
-}
-.panel-right {
-  flex: 1;
-  padding: 2.5rem 2.2rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-}
-.panel-right h1 {
-  font-size: 1.55rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-  color: #1a1a2e;
-}
-.error-alert,
-.info-alert {
-  border-radius: 0.5rem;
-  padding: 0.8rem 1rem;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-}
-.error-alert {
-  background: #fee2e2;
-  border: 1px solid #fca5a5;
-  color: #b91c1c;
-}
-.info-alert {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  color: #1d4ed8;
-}
-.stats-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-.stat-box {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.9rem;
-  padding: 1rem;
-}
-.stat-box strong {
-  display: block;
-  font-size: 1.4rem;
-  margin-bottom: 0.35rem;
-}
-.stat-box span {
-  color: #475569;
-}
-.section-block {
-  margin-bottom: 1.5rem;
-}
-.section-block h2 {
-  font-size: 1rem;
-  font-weight: 700;
-  margin-bottom: 0.75rem;
-}
-.profile-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
-}
-.profile-grid div {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.8rem;
-  padding: 1rem;
-}
-.profile-grid strong {
-  display: block;
-  margin-bottom: 0.35rem;
-  color: #334155;
-}
-.profile-grid p {
-  color: #475569;
-  margin: 0;
-}
-.appointments-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 0.75rem;
-}
-.appointments-list li {
-  padding: 1rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.85rem;
-  display: grid;
-  gap: 0.25rem;
-}
-.appointments-list strong {
-  color: #0f172a;
-}
-.appointments-list span {
-  color: #475569;
-  font-size: 0.9rem;
-}
-.status {
-  color: #1a6fd4;
+
+.logout-btn {
+  border: 1px solid #d7d7d7;
+  background: #fff;
+  color: #333;
+  border-radius: 999px;
+  padding: 10px 22px;
+  font-size: 14px;
   font-weight: 600;
+  cursor: pointer;
 }
-.empty-state {
-  padding: 1rem;
-  background: #f8fafc;
-  border-radius: 0.85rem;
-  color: #475569;
+
+.btn-logout {
+  position: absolute;
+  right: 30px;
+  background: #e35757;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
 }
+
+.page-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #2d2d2d;
+}
+
+.page-wrapper {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 30px 30px 40px 30px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #eaf0e8;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(20, 20, 20, 0.05);
+  padding: 18px;
+  margin-bottom: 18px;
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.welcome-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.section-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 14px;
+  color: #222;
+}
+
+.welcome-card .section-title {
+  margin: 0;
+}
+
+.top-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #555;
+  font-size: 14px;
+}
+
+.link-btn {
+  background: transparent;
+  border: none;
+  color: #555;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.department-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.department-row {
+  border: 1px solid #ececec;
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+}
+
+.dept-name {
+  font-size: 16px;
+  color: #444;
+}
+
+.btn {
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-transform: lowercase;
+}
+
+.btn-blue {
+  background: #2f80ed;
+  border-color: #2f80ed;
+  color: white;
+}
+
+.btn-blue:hover {
+  background: #1f6fda;
+}
+
+.btn-outline-red {
+  background: #fff;
+  color: #e25454;
+  border: 1px solid #efb2b2;
+}
+
+.btn-outline-red:hover {
+  background: #fff6f6;
+}
+
+.table-shell {
+  border: 1px solid #e7e7e7;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.appointments-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.appointments-table thead {
+  background: #fafbfc;
+}
+
+.appointments-table th,
+.appointments-table td {
+  padding: 14px 16px;
+  text-align: left;
+  font-size: 15px;
+  color: #444;
+  border-bottom: 1px solid #ececec;
+}
+
+.appointments-table th {
+  color: #333;
+  font-weight: 700;
+}
+
+.empty-cell {
+  text-align: center;
+  color: #888;
+  font-style: italic;
+}
+
 @media (max-width: 768px) {
-  .patient-card { flex-direction: column; }
-  .panel-left, .panel-right { padding: 1.5rem; }
-  .profile-grid { grid-template-columns: 1fr; }
-  .stats-row { grid-template-columns: 1fr; }
+  .topbar {
+    padding: 0 16px;
+  }
+
+  .brand {
+    font-size: 20px;
+  }
+
+  .page-title {
+    font-size: 28px;
+  }
+
+  .welcome-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .department-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .appointments-table th,
+  .appointments-table td {
+    font-size: 13px;
+    padding: 10px;
+  }
 }
 </style>

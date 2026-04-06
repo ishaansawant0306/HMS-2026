@@ -4,6 +4,9 @@
     <div class="top-navbar">
       <div class="nav-left">MediZentrum</div>
       <div class="nav-center">Admin Dashboard</div>
+      <div class="nav-right">
+        <button class="btn btn-logout" @click="logout">Logout</button>
+      </div>
     </div>
 
       <div class="card welcome-card">
@@ -204,6 +207,13 @@ export default {
         password: "",
         specialization: ""
       };
+    },
+
+    logout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+      localStorage.removeItem('adminId');
+      this.$router.push('/');
     }
   },
 
@@ -449,6 +459,16 @@ export default {
 .nav-center {
   font-size: 24px;
   font-weight: 700;
+}
+
+.nav-right {
+  position: absolute;
+  right: 30px;
+}
+
+.btn-logout {
+  background: #e35757;
+  color: white;
 }
 
 </style>

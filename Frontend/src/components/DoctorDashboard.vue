@@ -1,212 +1,325 @@
 <template>
-  <div class="doctor-page">
-    <nav class="top-nav">
-      <div class="nav-inner">
-        <span class="logo">MediZentrum</span>
-        <ul class="nav-links">
-          <li><a href="#">Products</a></li>
-          <li><a href="#">Resources</a></li>
-          <li><a href="#">Company</a></li>
-          <li><a href="#" class="btn-demo">Book a Demo</a></li>
-          <li><button class="nav-logout" @click="logout">Logout</button></li>
-        </ul>
+  <div class="doctor-dashboard">
+    <!-- TOP NAVBAR -->
+    <div class="top-navbar">
+      <div class="nav-left">MediZentrum</div>
+      <div class="nav-center">Doctor Dashboard</div>
+      <div class="nav-right">
+        <button class="btn btn-logout" @click="logout">Logout</button>
       </div>
-    </nav>
+    </div>
 
-    <main class="doctor-main">
-      <div class="doctor-card">
-        <div class="panel-left">
-          <h2>Doctor Dashboard</h2>
-          <p>This dashboard is populated with hardcoded test doctor information.</p>
-          <p>Use it to validate the doctor view and data layout.</p>
+    <div class="page-wrapper">
+      <section class="top-card">
+        <h1 class="welcome-title">Welcome {{ doctor.name }}</h1>
+      </section>
+
+      <section class="content-card">
+        <h2 class="section-title">Upcoming Appointments</h2>
+
+        <div class="table-shell">
+          <table class="dashboard-table">
+            <thead>
+              <tr>
+                <th>Sr No.</th>
+                <th>Patient Name</th>
+                <th>Patient History</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(appt, index) in appointments" :key="appt.id">
+                <td>{{ 1001 + index }}.</td>
+                <td>{{ appt.patient_name }}</td>
+                <td>
+                  <button class="btn btn-blue">update</button>
+                </td>
+                <td class="action-group">
+                  <button class="btn btn-green">mark as complete</button>
+                  <button class="btn btn-red-outline">cancel</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="content-card">
+        <h2 class="section-title">Assigned Patients</h2>
+
+        <div class="patient-list">
+          <div v-for="patient in patients" :key="patient.id" class="patient-row">
+            <span class="patient-name">{{ patient.name }}</span>
+            <button class="btn btn-blue">view</button>
+          </div>
         </div>
 
-        <div class="panel-right">
-          <h1>{{ doctor.name }}</h1>
-          <p class="doctor-meta">ID: {{ doctor.id }} · {{ doctor.specialization }} · {{ doctor.availability }}</p>
-
-          <section class="section-block">
-            <h2>Summary</h2>
-            <div class="summary-grid">
-              <div class="summary-card">
-                <strong>{{ doctor.upcoming_appointments }}</strong>
-                <span>Upcoming appointments</span>
-              </div>
-              <div class="summary-card">
-                <strong>{{ doctor.patients_count }}</strong>
-                <span>Assigned patients</span>
-              </div>
-              <div class="summary-card">
-                <strong>{{ doctor.completed_appointments }}</strong>
-                <span>Completed visits</span>
-              </div>
-            </div>
-          </section>
-
-          <section class="section-block">
-            <h2>Upcoming Appointments</h2>
-            <ul class="appointments-list">
-              <li v-for="appt in appointments" :key="appt.id">
-                <strong>{{ appt.patient_name }}</strong>
-                <span>{{ appt.date }} · {{ appt.time }}</span>
-                <span class="status">{{ appt.status }}</span>
-              </li>
-            </ul>
-          </section>
-
-          <section class="section-block">
-            <h2>Recent Patients</h2>
-            <div class="patient-list">
-              <div v-for="patient in patients" :key="patient.id" class="patient-card">
-                <h3>{{ patient.name }}</h3>
-                <p>{{ patient.email }}</p>
-                <p>{{ patient.age }} yrs · {{ patient.gender }}</p>
-              </div>
-            </div>
-          </section>
+        <div class="bottom-action">
+          <button class="btn btn-green large-btn">Provide Availability</button>
         </div>
-      </div>
-    </main>
+      </section>
+    </div>
   </div>
 </template>
 
 <script>
 export default {
-  name: 'DoctorDashboard',
+  name: "DoctorDashboard",
   data() {
     return {
       doctor: {
         id: 101,
-        name: 'Dr. Test Doctor',
-        email: 'testdoctor@hospital.com',
-        specialization: 'General Medicine',
-        availability: 'Mon-Fri 9AM - 5PM',
-        upcoming_appointments: 4,
-        patients_count: 8,
-        completed_appointments: 12
+        name: "Dr. Abcde",
+        email: "testdoctor@hospital.com",
+        specialization: "General Medicine",
+        availability: "Mon-Fri 9AM - 5PM"
       },
       appointments: [
-        { id: 1, patient_name: 'Test Patient One', date: '2026-04-10', time: '09:00', status: 'Booked' },
-        { id: 2, patient_name: 'Test Patient Two', date: '2026-04-11', time: '10:30', status: 'Booked' },
-        { id: 3, patient_name: 'Test Patient Three', date: '2026-04-12', time: '14:00', status: 'Booked' }
+        { id: 1, patient_name: "Mr. abcde", date: "2026-04-10", time: "09:00", status: "Booked" }
       ],
       patients: [
-        { id: 1, name: 'Test Patient One', email: 'patient1@example.com', age: 30, gender: 'Female' },
-        { id: 2, name: 'Test Patient Two', email: 'patient2@example.com', age: 26, gender: 'Male' },
-        { id: 3, name: 'Test Patient Three', email: 'patient3@example.com', age: 42, gender: 'Female' }
+        { id: 1, name: "Mr. abcde" },
+        { id: 2, name: "Miss. Pqrst" }
       ]
-    }
+    };
   },
   methods: {
     logout() {
-      localStorage.removeItem('token')
-      localStorage.removeItem('role')
-      localStorage.removeItem('user')
-      this.$router.push('/login')
+      localStorage.removeItem("token");
+      localStorage.removeItem("role");
+      localStorage.removeItem("user");
+      this.$router.push("/login");
     }
   }
-}
+};
 </script>
 
 <style scoped>
-.doctor-main {
-  flex: 1;
+.doctor-dashboard {
+  min-height: 100vh;
+  background: #f4f8ff;
+  padding: 80px 0 40px;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.top-navbar {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  height: 60px;
+  background: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem 1rem;
+  border-bottom: 1px solid #eee;
 }
-.doctor-card {
-  display: flex;
-  width: 100%;
-  max-width: 900px;
-  border-radius: 1rem;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
-  overflow: hidden;
-  background: #ffffff;
-}
-.panel-left {
-  background: #1a6fd4;
-  padding: 2.5rem 2rem;
-  flex: 0 0 35%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 1rem;
-  color: #fff;
-}
-.panel-left h2 {
-  font-size: 1.55rem;
+
+.nav-left {
+  position: absolute;
+  left: 30px;
+  font-size: 22px;
   font-weight: 700;
 }
-.panel-right {
-  flex: 1;
-  padding: 2.5rem 2.2rem;
+
+.nav-center {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.nav-right {
+  position: absolute;
+  right: 30px;
+}
+
+.btn-logout {
+  background: #e35757;
+  color: white;
+}
+
+.page-wrapper {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 30px;
+}
+
+.top-card,
+.content-card {
+  background: #ffffff;
+  border: 1px solid #ebefe9;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.top-card {
+  padding: 22px 24px;
+  margin-bottom: 22px;
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
 }
-.panel-right h1 {
-  margin-bottom: 0.25rem;
-}
-.doctor-meta {
-  margin-bottom: 1.5rem;
-  color: #475569;
-}
-.section-block {
-  margin-bottom: 1.5rem;
-}
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
-}
-.summary-card {
-  padding: 1rem;
-  border-radius: 0.85rem;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-}
-.summary-card strong {
-  display: block;
-  font-size: 1.5rem;
-  margin-bottom: 0.35rem;
-}
-.appointments-list,
-.patient-list {
-  list-style: none;
-  padding: 0;
+
+.welcome-title {
   margin: 0;
-  display: grid;
-  gap: 0.85rem;
+  font-size: 26px;
+  font-weight: 700;
+  color: #1f1f1f;
 }
-.appointments-list li,
-.patient-card {
-  padding: 1rem;
-  border-radius: 0.85rem;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-}
-.appointments-list strong {
-  display: block;
-  margin-bottom: 0.4rem;
-}
-.status {
-  color: #1a6fd4;
-  font-weight: 600;
-}
-.patient-card h3 {
-  margin-bottom: 0.35rem;
-}
-.nav-logout {
-  border: none;
-  background: transparent;
-  color: #1a6fd4;
+
+.logout-btn {
+  border: 1px solid #d8d8d8;
+  background: #fff;
+  color: #555;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
   cursor: pointer;
   font-weight: 600;
 }
-@media (max-width: 800px) {
-  .doctor-card { flex-direction: column; }
-  .panel-left, .panel-right { padding: 1.5rem; }
-  .summary-grid { grid-template-columns: 1fr; }
+
+.content-card {
+  padding: 22px 22px 18px;
+  margin-bottom: 22px;
+}
+
+.section-title {
+  margin: 0 0 18px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #222;
+}
+
+.table-shell {
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dashboard-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dashboard-table thead {
+  background: #f8f9fb;
+}
+
+.dashboard-table th,
+.dashboard-table td {
+  padding: 14px 18px;
+  text-align: left;
+  font-size: 15px;
+  color: #3c3c3c;
+  border-bottom: 1px solid #ececec;
+}
+
+.dashboard-table th {
+  font-weight: 700;
+  color: #2d2d2d;
+}
+
+.action-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.patient-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.patient-row {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  background: #fff;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.patient-name {
+  color: #444;
+  font-size: 16px;
+}
+
+.bottom-action {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.btn {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+  text-transform: lowercase;
+}
+
+.large-btn {
+  padding: 10px 18px;
+}
+
+.btn-green {
+  background: #16c341;
+  border-color: #16c341;
+  color: #fff;
+}
+
+.btn-green:hover {
+  background: #11ad39;
+}
+
+.btn-blue {
+  background: #2f80ed;
+  border-color: #2f80ed;
+  color: #fff;
+}
+
+.btn-blue:hover {
+  background: #1f6fd8;
+}
+
+.btn-red-outline {
+  background: #fff;
+  color: #e55353;
+  border: 1px solid #efb3b3;
+}
+
+.btn-red-outline:hover {
+  background: #fff5f5;
+}
+
+@media (max-width: 768px) {
+  .top-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .dashboard-table th,
+  .dashboard-table td {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .patient-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .bottom-action {
+    justify-content: stretch;
+  }
+
+  .large-btn {
+    width: 100%;
+  }
 }
 </style>

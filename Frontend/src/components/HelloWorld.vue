@@ -1,93 +1,173 @@
-<script setup>
-import { ref } from 'vue'
-import viteLogo from '../assets/vite.svg'
-import heroImg from '../assets/hero.png'
-import vueLogo from '../assets/vue.svg'
+<template>
+  <div class="doctor-page">
+    <!-- NAVBAR -->
+    <nav class="top-nav">
+      <div class="nav-inner">
+        <span class="logo">MediZentrum</span>
+        <button class="nav-logout" @click="logout">Logout</button>
+      </div>
+    </nav>
 
-const count = ref(0)
+    <!-- MAIN -->
+    <main class="dashboard">
+
+      <!-- WELCOME -->
+      <div class="card">
+        <h2>Welcome {{ doctor.name }}</h2>
+      </div>
+
+      <!-- APPOINTMENTS -->
+      <div class="card">
+        <h2>Upcoming Appointments</h2>
+
+        <table class="appt-table">
+          <thead>
+            <tr>
+              <th>Sr No.</th>
+              <th>Patient Name</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr v-for="(appt, index) in appointments" :key="appt.id">
+              <td>{{ index + 1 }}</td>
+              <td>{{ appt.patient_name }}</td>
+              <td class="status">{{ appt.status }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- PATIENTS -->
+      <div class="card">
+        <h2>Assigned Patients</h2>
+
+        <div class="patient-row" v-for="patient in patients" :key="patient.id">
+          <span>{{ patient.name }}</span>
+          <button class="view-btn">View</button>
+        </div>
+
+        <button class="availability-btn">Provide Availability</button>
+      </div>
+
+    </main>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'DoctorDashboard',
+  data() {
+    return {
+      doctor: {
+        id: 101,
+        name: 'Dr. Abcde'
+      },
+      appointments: [
+        { id: 1, patient_name: 'Mr. abcde', status: 'Booked' }
+      ],
+      patients: [
+        { id: 1, name: 'Mr. abcde' },
+        { id: 2, name: 'Miss. Pqrst' }
+      ]
+    }
+  },
+  methods: {
+    logout() {
+      localStorage.clear()
+      this.$router.push('/login')
+    }
+  }
+}
 </script>
 
-<template>
-  <section id="center">
-    <div class="hero">
-      <img :src="heroImg" class="base" width="170" height="179" alt="" />
-      <img :src="vueLogo" class="framework" alt="Vue logo" />
-      <img :src="viteLogo" class="vite" alt="Vite logo" />
-    </div>
-    <div>
-      <h1>Get started</h1>
-      <p>Edit <code>src/App.vue</code> and save to test <code>HMR</code></p>
-    </div>
-    <button class="counter" @click="count++">Count is {{ count }}</button>
-  </section>
+<style scoped>
 
-  <div class="ticks"></div>
+/* PAGE */
+.dashboard {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 20px;
+}
 
-  <section id="next-steps">
-    <div id="docs">
-      <svg class="icon" role="presentation" aria-hidden="true">
-        <use href="/icons.svg#documentation-icon"></use>
-      </svg>
-      <h2>Documentation</h2>
-      <p>Your questions, answered</p>
-      <ul>
-        <li>
-          <a href="https://vite.dev/" target="_blank">
-            <img class="logo" :src="viteLogo" alt="" />
-            Explore Vite
-          </a>
-        </li>
-        <li>
-          <a href="https://vuejs.org/" target="_blank">
-            <img class="button-icon" :src="vueLogo" alt="" />
-            Learn more
-          </a>
-        </li>
-      </ul>
-    </div>
-    <div id="social">
-      <svg class="icon" role="presentation" aria-hidden="true">
-        <use href="/icons.svg#social-icon"></use>
-      </svg>
-      <h2>Connect with us</h2>
-      <p>Join the Vite community</p>
-      <ul>
-        <li>
-          <a href="https://github.com/vitejs/vite" target="_blank">
-            <svg class="button-icon" role="presentation" aria-hidden="true">
-              <use href="/icons.svg#github-icon"></use>
-            </svg>
-            GitHub
-          </a>
-        </li>
-        <li>
-          <a href="https://chat.vite.dev/" target="_blank">
-            <svg class="button-icon" role="presentation" aria-hidden="true">
-              <use href="/icons.svg#discord-icon"></use>
-            </svg>
-            Discord
-          </a>
-        </li>
-        <li>
-          <a href="https://x.com/vite_js" target="_blank">
-            <svg class="button-icon" role="presentation" aria-hidden="true">
-              <use href="/icons.svg#x-icon"></use>
-            </svg>
-            X.com
-          </a>
-        </li>
-        <li>
-          <a href="https://bsky.app/profile/vite.dev" target="_blank">
-            <svg class="button-icon" role="presentation" aria-hidden="true">
-              <use href="/icons.svg#bluesky-icon"></use>
-            </svg>
-            Bluesky
-          </a>
-        </li>
-      </ul>
-    </div>
-  </section>
+/* NAVBAR */
+.top-nav {
+  background: white;
+  padding: 12px 20px;
+  border-bottom: 1px solid #ddd;
+}
+.nav-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.logo {
+  font-weight: 700;
+  font-size: 18px;
+}
+.nav-logout {
+  border: 1px solid #ccc;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  background: white;
+}
 
-  <div class="ticks"></div>
-  <section id="spacer"></section>
-</template>
+/* CARDS */
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* TABLE */
+.appt-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+.appt-table th,
+.appt-table td {
+  border-bottom: 1px solid #eee;
+  padding: 10px;
+  text-align: left;
+}
+.status {
+  color: green;
+  font-weight: 600;
+}
+
+/* PATIENT LIST */
+.patient-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+/* BUTTONS */
+.view-btn {
+  background: #1a6fd4;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.availability-btn {
+  margin-top: 10px;
+  background: green;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  float: right;
+}
+
+</style>
