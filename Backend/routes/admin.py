@@ -15,17 +15,15 @@ admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
 @jwt_required()
 @require_role('admin')
 def dashboard():
-    """
-    Admin dashboard endpoint - displays key statistics
-    Returns: Total doctors, patients, and appointments count
-    """
     try:
-        total_doctors = Doctor.query.count()
-        total_patients = Patient.query.count()
+        total_doctors = db.session.query(Doctor).filter(Doctor.is_blacklisted == False).count()
+        total_patients = db.session.query(Patient).filter(Patient.is_blacklisted == False).count()
         total_appointments = Appointment.query.count()
-        upcoming_appointments = Appointment.query.filter(
-            Appointment.status == 'Booked'
-        ).count()
+        
+        # Status breakdown
+        upcoming = Appointment.query.filter(Appointment.status == 'Booked').count()
+        completed = Appointment.query.filter(Appointment.status == 'Completed').count()
+        cancelled = Appointment.query.filter(Appointment.status == 'Cancelled').count()
         
         return jsonify({
             'status': 'success',
@@ -33,7 +31,9 @@ def dashboard():
                 'total_doctors': total_doctors,
                 'total_patients': total_patients,
                 'total_appointments': total_appointments,
-                'upcoming_appointments': upcoming_appointments
+                'upcoming_appointments': upcoming,
+                'completed_appointments': completed,
+                'cancelled_appointments': cancelled
             }
         }), 200
     except Exception as e:

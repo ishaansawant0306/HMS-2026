@@ -1,7 +1,4 @@
-"""
-Authentication routes for Hospital Management System
-Handle login/register for all user roles
-"""
+
 from flask import Blueprint, request, jsonify
 from models import db, User, Patient, Doctor, Appointment  
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
@@ -13,10 +10,10 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
 @auth_bp.route('/register/patient', methods=['POST'])
 def register_patient():
-    """
-    Patient registration endpoint
-    Required fields: username, email, password, age, gender, contact_number
-    """
+    
+     
+
+      
     try:
         data = request.get_json()
         
