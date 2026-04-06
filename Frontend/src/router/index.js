@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import LoginPage from '../components/LoginPage.vue'
 import PatientRegister from '../components/RegisterPage.vue'
 import AdminDashboard from '../components/AdminDashboard.vue'
+import PatientDashboard from '../components/PatientDashboard.vue'
+import DoctorDashboard from '../components/DoctorDashboard.vue'
 
 const routes = [
   {
@@ -17,6 +19,18 @@ const routes = [
     path: '/register',
     name: 'Register',
     component: PatientRegister
+  },
+  {
+    path: '/patient',
+    name: 'PatientDashboard',
+    component: PatientDashboard,
+    meta: { requiresAuth: true, role: 'patient' }
+  },
+  {
+    path: '/doctor',
+    name: 'DoctorDashboard',
+    component: DoctorDashboard,
+    meta: { requiresAuth: true, role: 'doctor' }
   },
   {
     path: '/admin',

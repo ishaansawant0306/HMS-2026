@@ -5,14 +5,20 @@ from flask_cors import CORS
 from datetime import timedelta
 from models import db
 from routes import register_blueprints
-from init_db import init_admin
+from init_db import init_admin, init_test_doctor
 
 
 def create_app():
     app = Flask(__name__)
     
     # Enable CORS
-    CORS(app, origins=['http://localhost:3000', 'http://localhost:8080', 'http://127.0.0.1:3000'])
+    CORS(app, origins=[
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'http://localhost:8080'
+    ])
     
     # Database Configuration
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///hms2026.db'
@@ -33,8 +39,9 @@ def create_app():
         # Create all database tables
         db.create_all()
         
-        # Initialize admin user
+        # Initialize admin user and a test doctor account
         init_admin()
+        init_test_doctor()
     
     return app
 
