@@ -153,15 +153,22 @@ def update_profile():
 def get_available_doctors():
     """
     Get list of available doctors for the next 7 days
-    Optional query parameter: specialization (to filter by specialization)
+    Optional query parameters: specialization, name (to filter by name or specialization)
     """
     try:
         specialization = request.args.get('specialization', '').strip()
+        name = request.args.get('name', '').strip()
         
-        query = Doctor.query.filter(Doctor.is_blacklisted == False)
+        query = Doctor.query.join(User).filter(Doctor.is_blacklisted == False)
         
         if specialization:
             query = query.filter(Doctor.specialization.ilike(f'%{specialization}%'))
+        
+        if name:
+            query = query.filter(
+                (User.username.ilike(f'%{name}%')) | 
+                (Doctor.specialization.ilike(f'%{name}%'))
+            )
         
         doctors = query.all()
         

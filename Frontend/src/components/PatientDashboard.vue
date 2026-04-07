@@ -265,6 +265,31 @@
           </div>
         </div>
       </div>
+
+      <!-- View Doctors Modal -->
+      <div v-if="showDoctorsModal" class="modal-overlay" @click="closeDoctorsModal">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h3>Doctors in {{ selectedSpecialization }}</h3>
+            <button class="close-btn" @click="closeDoctorsModal">&times;</button>
+          </div>
+
+          <div class="modal-body">
+            <div v-if="specializationDoctors.length === 0" class="empty-cell">No doctors found in this specialization</div>
+            <div v-for="doctor in specializationDoctors" :key="doctor.id" class="doctor-row">
+              <div>
+                <div style="font-weight: 600; color: #333;">Dr. {{ doctor.name }}</div>
+                <div style="font-size: 12px; color: #999;">{{ doctor.email }}</div>
+              </div>
+              <button class="btn btn-blue btn-sm" @click="selectDoctorForBooking(doctor); closeDoctorsModal()">Book</button>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" @click="closeDoctorsModal">Close</button>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
 </template>
@@ -295,8 +320,10 @@ export default {
       showHistoryModal: false,
       showEditProfileModal: false,
       showRescheduleModal: false,
+      showDoctorsModal: false,
       selectedSpecialization: "",
       selectedRescheduleAppointment: null,
+      specializationDoctors: [],
       bookingForm: {
         doctor_id: "",
         date: "",
@@ -440,15 +467,7 @@ export default {
           headers: { Authorization: `Bearer ${token}` }
         });
         
-        // If name is provided, filter by name
-        let results = response.data.doctors || [];
-        if (this.doctorSearchForm.name) {
-          results = results.filter(doc => 
-            doc.name.toLowerCase().includes(this.doctorSearchForm.name.toLowerCase())
-          );
-        }
-        
-        this.searchDoctorsResults = results;
+        this.searchDoctorsResults = response.data.doctors || [];
       } catch (err) {
         console.error("Error searching doctors:", err);
         this.error = "Failed to search doctors";
@@ -521,7 +540,8 @@ export default {
         this.closeEditProfileModal();
         this.fetchDashboardData();
       } catch (err) {
-        alert(err.response?.data?.error || "Failed to update profile");
+        console.error("Profile update error:", err);
+        alert(err.response?.data?.error || err.response?.data?.message || "Failed to update profile");
       }
     },
 
@@ -596,12 +616,26 @@ export default {
       }
     },
 
-    viewDoctorDetails(doctor) {
-      alert(`Dr. ${doctor.name}\nSpecialization: ${doctor.specialization}\nEmail: ${doctor.email}`);
+    async fetchDoctorsBySpecialization(specialization) {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await axios.get(`${API_BASE_URL}/api/patient/doctors/available?specialization=${encodeURIComponent(specialization)}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        this.specializationDoctors = response.data.doctors || [];
+      } catch (err) {
+        console.error("Error fetching doctors by specialization:", err);
+      }
+    },
+
+    closeDoctorsModal() {
+      this.showDoctorsModal = false;
+      this.specializationDoctors = [];
     },
 
     filterDoctorsBySpecialization() {
-      this.fetchAvailableDoctors(this.selectedSpecialization);
+      this.fetchDoctorsBySpecialization(this.selectedSpecialization);
+      this.showDoctorsModal = true;
     },
 
     logout() {

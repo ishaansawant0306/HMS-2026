@@ -104,6 +104,12 @@ def login():
         if not user.is_active:
             return jsonify({'status': 'error', 'message': 'User account is inactive'}), 403
         
+        # Check if doctor is blacklisted
+        if user.role == 'doctor':
+            doctor = Doctor.query.filter_by(user_id=user.id).first()
+            if doctor and doctor.is_blacklisted:
+                return jsonify({'status': 'error', 'message': 'Your account has been blacklisted. Please contact admin.'}), 403
+        
         # Create JWT token
         token = create_access_token(
             identity=str(user.id),

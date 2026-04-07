@@ -218,8 +218,17 @@ export default {
         this.error = "";
         this.loading = false;
       } catch (err) {
-        this.error = "Failed to load dashboard data";
-        console.error("Error fetching dashboard:", err);
+        if (err.response?.status === 403) {
+          this.error = err.response.data.error || "Access denied";
+          // Redirect to login if blacklisted
+          setTimeout(() => {
+            localStorage.removeItem("token");
+            localStorage.removeItem("role");
+            this.$router.push("/login");
+          }, 3000);
+        } else {
+          this.error = "Failed to load dashboard data";
+        }
         this.loading = false;
       }
     },

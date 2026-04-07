@@ -79,7 +79,6 @@
             <div class="list-actions">
               <button v-if="!patient.is_blacklisted" class="btn btn-outline-blue btn-sm" @click="showPatientDetails(patient)">details</button>
               <button v-if="!patient.is_blacklisted" class="btn btn-outline-yellow btn-sm" @click="editPatient(patient)">edit</button>
-              <button v-if="!patient.is_blacklisted" class="btn btn-outline-gray btn-sm" @click="blacklistPatient(patient.id)">blacklist</button>
               <button v-if="patient.is_blacklisted" class="btn btn-outline-blue btn-sm" @click="unblacklistPatient(patient.id)">unblacklist</button>
             </div>
           </div>
@@ -546,40 +545,6 @@ export default {
         setTimeout(() => { this.successMessage = ""; }, 3000);
       } catch (err) {
         this.error = err.response?.data?.error || "Failed to unblacklist doctor";
-      }
-    },
-
-    async blacklistPatient(id) {
-      if (!confirm("Are you sure you want to blacklist this patient?")) return;
-
-      try {
-        const token = localStorage.getItem("token");
-        await axios.post(`${API_BASE_URL}/api/admin/patients/${id}/blacklist`, {}, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        this.successMessage = "Patient blacklisted successfully";
-        this.fetchDashboardData();
-        setTimeout(() => { this.successMessage = ""; }, 3000);
-      } catch (err) {
-        this.error = err.response?.data?.error || "Failed to blacklist patient";
-      }
-    },
-
-    async unblacklistPatient(id) {
-      if (!confirm("Are you sure you want to unblacklist this patient?")) return;
-
-      try {
-        const token = localStorage.getItem("token");
-        await axios.post(`${API_BASE_URL}/api/admin/patients/${id}/unblacklist`, {}, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        this.successMessage = "Patient unblacklisted successfully";
-        this.fetchDashboardData();
-        setTimeout(() => { this.successMessage = ""; }, 3000);
-      } catch (err) {
-        this.error = err.response?.data?.error || "Failed to unblacklist patient";
       }
     },
 
