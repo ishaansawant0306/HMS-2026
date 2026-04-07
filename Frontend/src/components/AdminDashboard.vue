@@ -14,26 +14,6 @@
       <div v-if="error" class="alert alert-danger">{{ error }}</div>
       <div v-if="successMessage" class="alert alert-success">{{ successMessage }}</div>
 
-      <!-- STATISTICS CARDS -->
-      <div class="stats-container">
-        <div class="stat-card">
-          <div class="stat-value">{{ dashboardStats.total_doctors }}</div>
-          <div class="stat-label">Total Doctors</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">{{ dashboardStats.total_patients }}</div>
-          <div class="stat-label">Total Patients</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">{{ dashboardStats.total_appointments }}</div>
-          <div class="stat-label">Total Appointments</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">{{ dashboardStats.appointments_completed }}</div>
-          <div class="stat-label">Completed</div>
-        </div>
-      </div>
-
       <!-- WELCOME & SEARCH CARD -->
       <div class="card welcome-card">
         <div class="welcome-content">
@@ -59,24 +39,26 @@
       <!-- DOCTORS SECTION -->
       <div class="card">
         <div class="card-header">
-          <h2 class="card-title">Registered Doctors ({{ filteredDoctors.length }})</h2>
+          <h2 class="card-title">Registered Doctors ({{ allDoctors.length }})</h2>
           <button class="btn btn-green" @click="openAddDoctorModal">+ Create Doctor</button>
         </div>
 
         <div class="simple-list">
-          <div v-for="doctor in filteredDoctors" :key="doctor.id" class="list-row">
+          <div v-for="doctor in allDoctors" :key="doctor.id" class="list-row" :class="{ 'blacklisted-row': doctor.is_blacklisted }">
             <div class="list-info">
-              <div class="list-name">{{ doctor.name || doctor.username }}</div>
+              <div class="list-name" :class="{ strikethrough: doctor.is_blacklisted }">{{ doctor.name || doctor.username }}</div>
               <div class="list-subtext">{{ doctor.specialization }} | {{ doctor.email }}</div>
             </div>
             <div class="list-actions">
-              <button class="btn btn-outline-yellow btn-sm" @click="editDoctor(doctor)">edit</button>
-              <button class="btn btn-outline-red btn-sm" @click="deleteDoctor(doctor.id)">delete</button>
-              <button class="btn btn-outline-gray btn-sm" @click="blacklistDoctor(doctor.id)">blacklist</button>
+              <button v-if="!doctor.is_blacklisted" class="btn btn-outline-yellow btn-sm" @click="editDoctor(doctor)">edit</button>
+              <button v-if="!doctor.is_blacklisted" class="btn btn-outline-red btn-sm" @click="deleteDoctor(doctor.id)">delete</button>
+              <button v-if="!doctor.is_blacklisted" class="btn btn-outline-gray btn-sm" @click="blacklistDoctor(doctor.id)">blacklist</button>
+              <button v-if="doctor.is_blacklisted" class="btn btn-outline-blue btn-sm" @click="unblacklistDoctor(doctor.id)">unblacklist</button>
+              <button class="btn btn-outline-blue btn-sm" @click="showDoctorDetails(doctor)">details</button>
             </div>
           </div>
 
-          <div v-if="filteredDoctors.length === 0" class="list-row empty-row">
+          <div v-if="allDoctors.length === 0" class="list-row empty-row">
             <span>No doctors found</span>
           </div>
         </div>
@@ -89,14 +71,16 @@
         </div>
 
         <div class="simple-list">
-          <div class="list-row" v-for="patient in filteredPatients" :key="patient.id">
+          <div class="list-row" v-for="patient in filteredPatients" :key="patient.id" :class="{ 'blacklisted-row': patient.is_blacklisted }">
             <div class="list-info">
-              <div class="list-name">{{ patient.name || patient.username }}</div>
+              <div class="list-name" :class="{ strikethrough: patient.is_blacklisted }">{{ patient.name || patient.username }}</div>
               <div class="list-subtext">{{ patient.email }}</div>
             </div>
             <div class="list-actions">
-              <button class="btn btn-outline-yellow btn-sm">edit</button>
-              <button class="btn btn-outline-red btn-sm">blacklist</button>
+              <button v-if="!patient.is_blacklisted" class="btn btn-outline-blue btn-sm" @click="showPatientDetails(patient)">details</button>
+              <button v-if="!patient.is_blacklisted" class="btn btn-outline-yellow btn-sm" @click="editPatient(patient)">edit</button>
+              <button v-if="!patient.is_blacklisted" class="btn btn-outline-gray btn-sm" @click="blacklistPatient(patient.id)">blacklist</button>
+              <button v-if="patient.is_blacklisted" class="btn btn-outline-blue btn-sm" @click="unblacklistPatient(patient.id)">unblacklist</button>
             </div>
           </div>
           <div v-if="filteredPatients.length === 0" class="list-row empty-row">
@@ -108,7 +92,7 @@
       <!-- APPOINTMENTS SECTION -->
       <div class="card">
         <div class="card-header no-button">
-          <h2 class="card-title">Upcoming Appointments ({{ appointments.length }})</h2>
+          <h2 class="card-title">Upcoming Appointments ({{ upcomingAppointments.length }})</h2>
         </div>
 
         <div class="table-shell">
@@ -124,7 +108,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(a, index) in appointments" :key="a.id">
+              <tr v-for="(a, index) in upcomingAppointments" :key="a.id">
                 <td>{{ index + 1 }}</td>
                 <td>{{ a.patient_name }}</td>
                 <td>{{ a.doctor_name }}</td>
@@ -132,8 +116,43 @@
                 <td>{{ a.time }}</td>
                 <td><span :class="['badge', 'badge-' + (a.status.toLowerCase())]">{{ a.status }}</span></td>
               </tr>
-              <tr v-if="appointments.length === 0">
-                <td colspan="6" class="empty-cell">No appointments</td>
+              <tr v-if="upcomingAppointments.length === 0">
+                <td colspan="6" class="empty-cell">No upcoming appointments</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PAST APPOINTMENTS SECTION -->
+      <div class="card">
+        <div class="card-header no-button">
+          <h2 class="card-title">Past Appointments ({{ pastAppointments.length }})</h2>
+        </div>
+
+        <div class="table-shell">
+          <table class="appointments-table">
+            <thead>
+              <tr>
+                <th>Sr No.</th>
+                <th>Patient</th>
+                <th>Doctor</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(a, index) in pastAppointments" :key="a.id">
+                <td>{{ index + 1 }}</td>
+                <td>{{ a.patient_name }}</td>
+                <td>{{ a.doctor_name }}</td>
+                <td>{{ a.date }}</td>
+                <td>{{ a.time }}</td>
+                <td><span :class="['badge', 'badge-' + (a.status.toLowerCase())]">{{ a.status }}</span></td>
+              </tr>
+              <tr v-if="pastAppointments.length === 0">
+                <td colspan="6" class="empty-cell">No past appointments</td>
               </tr>
             </tbody>
           </table>
@@ -176,6 +195,106 @@
           </div>
         </div>
       </div>
+
+      <!-- EDIT PATIENT MODAL -->
+      <div v-if="showPatientModal" class="modal-overlay" @click="closePatientModal">
+        <div class="modal-box" @click.stop>
+          <div class="modal-header">
+            <h3>Edit Patient</h3>
+            <button class="close-btn" @click="closePatientModal">&times;</button>
+          </div>
+
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Username:</label>
+              <input v-model="patientForm.username" placeholder="Patient's name" class="form-input" />
+            </div>
+
+            <div class="form-group">
+              <label>Email:</label>
+              <input v-model="patientForm.email" type="email" placeholder="Email" class="form-input" />
+            </div>
+
+            <div class="form-group">
+              <label>Age:</label>
+              <input v-model="patientForm.age" type="number" placeholder="Age" class="form-input" />
+            </div>
+
+            <div class="form-group">
+              <label>Gender:</label>
+              <select v-model="patientForm.gender" class="form-input">
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Contact Number:</label>
+              <input v-model="patientForm.contact_number" placeholder="Contact number" class="form-input" />
+            </div>
+
+            <div class="form-group">
+              <label>Address:</label>
+              <input v-model="patientForm.address" placeholder="Address" class="form-input" />
+            </div>
+
+            <div class="form-group">
+              <label>Height:</label>
+              <input v-model="patientForm.height" type="number" placeholder="Height (cm)" class="form-input" />
+            </div>
+
+            <div class="form-group">
+              <label>Weight:</label>
+              <input v-model="patientForm.weight" type="number" placeholder="Weight (kg)" class="form-input" />
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button class="btn btn-outline-gray" @click="closePatientModal">Cancel</button>
+            <button class="btn btn-green" @click="submitPatientForm">Update</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DETAILS MODAL -->
+      <div v-if="showDetailsModal" class="modal-overlay" @click="closeDetailsModal">
+        <div class="modal-box" @click.stop>
+          <div class="modal-header">
+            <h3>{{ detailsTitle }}</h3>
+            <button class="close-btn" @click="closeDetailsModal">&times;</button>
+          </div>
+
+          <div class="modal-body">
+            <div v-if="detailsType === 'doctor'">
+              <p><strong>Name:</strong> {{ selectedDetails.name }}</p>
+              <p><strong>Email:</strong> {{ selectedDetails.email }}</p>
+              <p><strong>Specialization:</strong> {{ selectedDetails.specialization }}</p>
+              <p><strong>Status:</strong> <span :class="{ 'text-danger': selectedDetails.is_blacklisted, 'text-success': !selectedDetails.is_blacklisted }">
+                {{ selectedDetails.is_blacklisted ? 'Blacklisted' : 'Active' }}
+              </span></p>
+            </div>
+            <div v-else-if="detailsType === 'patient'">
+              <p><strong>Name:</strong> {{ selectedDetails.name }}</p>
+              <p><strong>Email:</strong> {{ selectedDetails.email }}</p>
+              <p><strong>Age:</strong> {{ selectedDetails.age }}</p>
+              <p><strong>Gender:</strong> {{ selectedDetails.gender }}</p>
+              <p><strong>Contact:</strong> {{ selectedDetails.contact_number }}</p>
+              <p><strong>Address:</strong> {{ selectedDetails.address || 'N/A' }}</p>
+              <p><strong>Height:</strong> {{ selectedDetails.height }} cm</p>
+              <p><strong>Weight:</strong> {{ selectedDetails.weight }} kg</p>
+              <p><strong>Status:</strong> <span :class="{ 'text-danger': selectedDetails.is_blacklisted, 'text-success': !selectedDetails.is_blacklisted }">
+                {{ selectedDetails.is_blacklisted ? 'Blacklisted' : 'Active' }}
+              </span></p>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button class="btn btn-outline-gray" @click="closeDetailsModal">Close</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -198,10 +317,13 @@ export default {
         appointments_cancelled: 0
       },
       doctors: [],
+      allDoctors: [],
       patients: [],
       appointments: [],
       filteredDoctors: [],
       filteredPatients: [],
+      upcomingAppointments: [],
+      pastAppointments: [],
       
       searchTerm: "",
       searchType: "doctors", // 'doctors' or 'patients'
@@ -209,7 +331,12 @@ export default {
       error: "",
       successMessage: "",
       showModal: false,
+      showPatientModal: false,
+      showDetailsModal: false,
       isEditMode: false,
+      detailsType: "", // 'doctor' or 'patient'
+      detailsTitle: "",
+      selectedDetails: {},
       loading: true,
 
       doctorForm: {
@@ -218,6 +345,17 @@ export default {
         email: "",
         password: "",
         specialization: ""
+      },
+      patientForm: {
+        id: null,
+        username: "",
+        email: "",
+        age: "",
+        gender: "",
+        contact_number: "",
+        address: "",
+        height: "",
+        weight: ""
       }
     };
   },
@@ -234,21 +372,34 @@ export default {
 
         // Fetch dashboard stats
         const statsRes = await axios.get(`${API_BASE_URL}/api/admin/dashboard`, { headers });
-        this.dashboardStats = statsRes.data.data || statsRes.data;
+        this.dashboardStats = statsRes.data.data || statsRes.data.dashboard || statsRes.data;
 
-        // Fetch doctors
-        const doctorsRes = await axios.get(`${API_BASE_URL}/api/admin/doctors`, { headers });
-        this.doctors = doctorsRes.data.doctors || [];
-        this.filteredDoctors = this.doctors;
+        // Fetch doctors including blacklisted ones
+        const doctorsRes = await axios.get(`${API_BASE_URL}/api/admin/doctors?include_blacklisted=true`, { headers });
+        this.allDoctors = doctorsRes.data.doctors || [];
+        this.filteredDoctors = this.allDoctors;
 
-        // Fetch patients
-        const patientsRes = await axios.get(`${API_BASE_URL}/api/admin/patients`, { headers });
+        // Fetch patients including blacklisted ones
+        const patientsRes = await axios.get(`${API_BASE_URL}/api/admin/patients?include_blacklisted=true`, { headers });
         this.patients = patientsRes.data.patients || [];
         this.filteredPatients = this.patients;
 
         // Fetch appointments
         const appointmentsRes = await axios.get(`${API_BASE_URL}/api/admin/appointments`, { headers });
         this.appointments = appointmentsRes.data.appointments || [];
+        
+        // Separate upcoming and past appointments
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        this.upcomingAppointments = this.appointments.filter(a => {
+          const apptDate = new Date(a.date);
+          return apptDate >= today && a.status === 'Booked';
+        });
+        
+        this.pastAppointments = this.appointments.filter(a => {
+          return a.status === 'Completed' || a.status === 'Cancelled';
+        });
 
         this.error = "";
         this.loading = false;
@@ -261,7 +412,7 @@ export default {
 
     async search() {
       if (!this.searchTerm.trim()) {
-        this.filteredDoctors = this.doctors;
+        this.filteredDoctors = this.allDoctors;
         this.filteredPatients = this.patients;
         return;
       }
@@ -272,13 +423,13 @@ export default {
 
         if (this.searchType === "doctors") {
           const res = await axios.get(
-            `${API_BASE_URL}/api/admin/doctors?search=${encodeURIComponent(this.searchTerm)}`,
+            `${API_BASE_URL}/api/admin/doctors?search=${encodeURIComponent(this.searchTerm)}&include_blacklisted=true`,
             { headers }
           );
           this.filteredDoctors = res.data.doctors || [];
         } else {
           const res = await axios.get(
-            `${API_BASE_URL}/api/admin/search/patients?search=${encodeURIComponent(this.searchTerm)}`,
+            `${API_BASE_URL}/api/admin/patients?search=${encodeURIComponent(this.searchTerm)}&include_blacklisted=true`,
             { headers }
           );
           this.filteredPatients = res.data.patients || [];
@@ -290,7 +441,7 @@ export default {
 
     openAddDoctorModal() {
       this.isEditMode = false;
-      this.resetForm();
+      this.resetDoctorForm();
       this.showModal = true;
     },
 
@@ -308,6 +459,43 @@ export default {
         specialization: doctor.specialization || ""
       };
       this.showModal = true;
+    },
+
+    editPatient(patient) {
+      this.patientForm = {
+        id: patient.id,
+        username: patient.name || patient.username,
+        email: patient.email,
+        age: patient.age,
+        gender: patient.gender,
+        contact_number: patient.contact_number,
+        address: patient.address || "",
+        height: patient.height || "",
+        weight: patient.weight || ""
+      };
+      this.showPatientModal = true;
+    },
+
+    closePatientModal() {
+      this.showPatientModal = false;
+    },
+
+    showDoctorDetails(doctor) {
+      this.detailsType = 'doctor';
+      this.detailsTitle = `Doctor Details - ${doctor.name}`;
+      this.selectedDetails = doctor;
+      this.showDetailsModal = true;
+    },
+
+    showPatientDetails(patient) {
+      this.detailsType = 'patient';
+      this.detailsTitle = `Patient Details - ${patient.name}`;
+      this.selectedDetails = patient;
+      this.showDetailsModal = true;
+    },
+
+    closeDetailsModal() {
+      this.showDetailsModal = false;
     },
 
     async deleteDoctor(id) {
@@ -341,6 +529,57 @@ export default {
         setTimeout(() => { this.successMessage = ""; }, 3000);
       } catch (err) {
         this.error = err.response?.data?.error || "Failed to blacklist doctor";
+      }
+    },
+
+    async unblacklistDoctor(id) {
+      if (!confirm("Are you sure you want to unblacklist this doctor?")) return;
+
+      try {
+        const token = localStorage.getItem("token");
+        await axios.post(`${API_BASE_URL}/api/admin/doctors/${id}/unblacklist`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        this.successMessage = "Doctor unblacklisted successfully";
+        this.fetchDashboardData();
+        setTimeout(() => { this.successMessage = ""; }, 3000);
+      } catch (err) {
+        this.error = err.response?.data?.error || "Failed to unblacklist doctor";
+      }
+    },
+
+    async blacklistPatient(id) {
+      if (!confirm("Are you sure you want to blacklist this patient?")) return;
+
+      try {
+        const token = localStorage.getItem("token");
+        await axios.post(`${API_BASE_URL}/api/admin/patients/${id}/blacklist`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        this.successMessage = "Patient blacklisted successfully";
+        this.fetchDashboardData();
+        setTimeout(() => { this.successMessage = ""; }, 3000);
+      } catch (err) {
+        this.error = err.response?.data?.error || "Failed to blacklist patient";
+      }
+    },
+
+    async unblacklistPatient(id) {
+      if (!confirm("Are you sure you want to unblacklist this patient?")) return;
+
+      try {
+        const token = localStorage.getItem("token");
+        await axios.post(`${API_BASE_URL}/api/admin/patients/${id}/unblacklist`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        this.successMessage = "Patient unblacklisted successfully";
+        this.fetchDashboardData();
+        setTimeout(() => { this.successMessage = ""; }, 3000);
+      } catch (err) {
+        this.error = err.response?.data?.error || "Failed to unblacklist patient";
       }
     },
 
@@ -384,7 +623,37 @@ export default {
       }
     },
 
-    resetForm() {
+    async submitPatientForm() {
+      if (!this.patientForm.username || !this.patientForm.email) {
+        alert("Please fill all required fields");
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem("token");
+        const headers = { Authorization: `Bearer ${token}` };
+
+        await axios.put(`${API_BASE_URL}/api/admin/patients/${this.patientForm.id}`, {
+          username: this.patientForm.username,
+          email: this.patientForm.email,
+          age: this.patientForm.age,
+          gender: this.patientForm.gender,
+          contact_number: this.patientForm.contact_number,
+          address: this.patientForm.address,
+          height: this.patientForm.height,
+          weight: this.patientForm.weight
+        }, { headers });
+        
+        this.successMessage = "Patient updated successfully";
+        this.closePatientModal();
+        this.fetchDashboardData();
+        setTimeout(() => { this.successMessage = ""; }, 3000);
+      } catch (err) {
+        this.error = err.response?.data?.error || "Operation failed";
+      }
+    },
+
+    resetDoctorForm() {
       this.doctorForm = {
         id: null,
         username: "",
@@ -660,6 +929,26 @@ export default {
   justify-content: center;
   color: #999;
   font-style: italic;
+}
+
+.list-row.blacklisted-row {
+  background: #f5f5f5;
+  opacity: 0.8;
+}
+
+.strikethrough {
+  text-decoration: line-through;
+  color: #999;
+}
+
+.text-danger {
+  color: #e35757;
+  font-weight: 600;
+}
+
+.text-success {
+  color: #28a745;
+  font-weight: 600;
 }
 
 .list-info {

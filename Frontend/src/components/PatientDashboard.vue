@@ -13,11 +13,33 @@
         <div class="welcome-row">
           <h2 class="section-title">Welcome {{ patient.name }}</h2>
           <div class="top-links">
-            <button class="link-btn">edit profile</button>
+            <button class="link-btn" @click="openEditProfileModal">edit profile</button>
             <span>|</span>
             <button class="link-btn" @click="showHistoryModal = true">History</button>
-            <span>|</span>
-            <button class="link-btn" @click="logout">logout</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Search for Doctor</h2>
+        <div class="search-section">
+          <div class="search-form">
+            <input v-model="doctorSearchForm.name" type="text" placeholder="Doctor name" class="form-control" />
+            <select v-model="doctorSearchForm.specialization" class="form-control">
+              <option value="">All Specializations</option>
+              <option v-for="dept in departments" :key="dept" :value="dept">{{ dept }}</option>
+            </select>
+            <button class="btn btn-blue" @click="searchDoctors">Search</button>
+            <button class="btn btn-secondary" @click="resetDoctorSearch">Reset</button>
+          </div>
+        </div>
+        <div v-if="searchDoctorsResults.length > 0" class="department-list" style="margin-top: 16px;">
+          <div v-for="doctor in searchDoctorsResults" :key="doctor.id" class="department-row">
+            <div>
+              <div style="font-weight: 600; color: #333;">Dr. {{ doctor.name }}</div>
+              <div style="font-size: 12px; color: #999;">{{ doctor.specialization }} | {{ doctor.email }}</div>
+            </div>
+            <button class="btn btn-blue btn-sm" @click="selectDoctorForBooking(doctor)">Book</button>
           </div>
         </div>
       </section>
@@ -63,7 +85,7 @@
                 <td>{{ appointment.time }}</td>
                 <td><span class="badge badge-success">{{ appointment.status }}</span></td>
                 <td>
-                  <button class="btn btn-outline-blue btn-sm" @click="rescheduleAppointment(appointment.id)">
+                  <button class="btn btn-outline-blue btn-sm" @click="openRescheduleModal(appointment)">
                     reschedule
                   </button>
                   <button class="btn btn-outline-red btn-sm" @click="cancelAppointment(appointment.id)">
@@ -125,6 +147,99 @@
         </div>
       </div>
 
+      <!-- Edit Profile Modal -->
+      <div v-if="showEditProfileModal" class="modal-overlay" @click="closeEditProfileModal">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h3>Edit Profile</h3>
+            <button class="close-btn" @click="closeEditProfileModal">&times;</button>
+          </div>
+
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Name:</label>
+              <input v-model="profileForm.username" type="text" class="form-control" />
+            </div>
+
+            <div class="form-group">
+              <label>Email:</label>
+              <input v-model="profileForm.email" type="email" class="form-control" />
+            </div>
+
+            <div class="form-group">
+              <label>Age:</label>
+              <input v-model="profileForm.age" type="number" class="form-control" />
+            </div>
+
+            <div class="form-group">
+              <label>Gender:</label>
+              <select v-model="profileForm.gender" class="form-control">
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Contact Number:</label>
+              <input v-model="profileForm.contact_number" type="text" class="form-control" />
+            </div>
+
+            <div class="form-group">
+              <label>Address:</label>
+              <input v-model="profileForm.address" type="text" class="form-control" />
+            </div>
+
+            <div class="form-group">
+              <label>Height (cm):</label>
+              <input v-model="profileForm.height" type="number" class="form-control" />
+            </div>
+
+            <div class="form-group">
+              <label>Weight (kg):</label>
+              <input v-model="profileForm.weight" type="number" class="form-control" />
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" @click="closeEditProfileModal">Cancel</button>
+            <button class="btn btn-blue" @click="submitProfileUpdate">Save Changes</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reschedule Modal -->
+      <div v-if="showRescheduleModal" class="modal-overlay" @click="closeRescheduleModal">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h3>Reschedule Appointment</h3>
+            <button class="close-btn" @click="closeRescheduleModal">&times;</button>
+          </div>
+
+          <div class="modal-body">
+            <p style="margin-bottom: 16px;"><strong>Current Appointment:</strong><br>
+              Dr. {{ selectedRescheduleAppointment?.doctor_name }} - {{ selectedRescheduleAppointment?.date }} {{ selectedRescheduleAppointment?.time }}
+            </p>
+
+            <div class="form-group">
+              <label>New Date:</label>
+              <input v-model="rescheduleForm.date" type="date" class="form-control" />
+            </div>
+
+            <div class="form-group">
+              <label>New Time:</label>
+              <input v-model="rescheduleForm.time" type="time" class="form-control" />
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" @click="closeRescheduleModal">Cancel</button>
+            <button class="btn btn-blue" @click="submitReschedule">Reschedule</button>
+          </div>
+        </div>
+      </div>
+
       <!-- History Modal -->
       <div v-if="showHistoryModal" class="modal-overlay" @click="showHistoryModal = false">
         <div class="modal-content" @click.stop>
@@ -173,15 +288,37 @@ export default {
       appointments: [],
       medicalHistory: [],
       availableDoctors: [],
+      searchDoctorsResults: [],
       loading: true,
       error: null,
       showBookingModal: false,
       showHistoryModal: false,
+      showEditProfileModal: false,
+      showRescheduleModal: false,
       selectedSpecialization: "",
+      selectedRescheduleAppointment: null,
       bookingForm: {
         doctor_id: "",
         date: "",
         time: ""
+      },
+      profileForm: {
+        username: "",
+        email: "",
+        age: "",
+        gender: "",
+        contact_number: "",
+        address: "",
+        height: "",
+        weight: ""
+      },
+      rescheduleForm: {
+        date: "",
+        time: ""
+      },
+      doctorSearchForm: {
+        name: "",
+        specialization: ""
       }
     };
   },
@@ -217,7 +354,21 @@ export default {
         });
         
         this.patient = response.data.patient;
+        // Only show specializations that have non-blacklisted doctors
         this.departments = response.data.specializations || [];
+        
+        // Load profile form with patient data
+        this.profileForm = {
+          username: this.patient.name,
+          email: this.patient.email,
+          age: this.patient.age,
+          gender: this.patient.gender,
+          contact_number: this.patient.contact_number || "",
+          address: this.patient.address || "",
+          height: this.patient.height || "",
+          weight: this.patient.weight || ""
+        };
+        
         this.error = null;
       } catch (err) {
         this.error = "Failed to load dashboard data";
@@ -268,6 +419,55 @@ export default {
       }
     },
 
+    async searchDoctors() {
+      try {
+        const token = localStorage.getItem("token");
+        let url = `${API_BASE_URL}/api/patient/doctors/available`;
+        const params = [];
+        
+        if (this.doctorSearchForm.specialization) {
+          params.push(`specialization=${encodeURIComponent(this.doctorSearchForm.specialization)}`);
+        }
+        if (this.doctorSearchForm.name) {
+          params.push(`name=${encodeURIComponent(this.doctorSearchForm.name)}`);
+        }
+        
+        if (params.length > 0) {
+          url += `?${params.join('&')}`;
+        }
+        
+        const response = await axios.get(url, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        // If name is provided, filter by name
+        let results = response.data.doctors || [];
+        if (this.doctorSearchForm.name) {
+          results = results.filter(doc => 
+            doc.name.toLowerCase().includes(this.doctorSearchForm.name.toLowerCase())
+          );
+        }
+        
+        this.searchDoctorsResults = results;
+      } catch (err) {
+        console.error("Error searching doctors:", err);
+        this.error = "Failed to search doctors";
+      }
+    },
+
+    resetDoctorSearch() {
+      this.doctorSearchForm = {
+        name: "",
+        specialization: ""
+      };
+      this.searchDoctorsResults = [];
+    },
+
+    selectDoctorForBooking(doctor) {
+      this.bookingForm.doctor_id = doctor.id;
+      this.openBookingModal();
+    },
+
     openBookingModal() {
       this.showBookingModal = true;
       this.fetchAvailableDoctors();
@@ -277,6 +477,52 @@ export default {
       this.showBookingModal = false;
       this.bookingForm = { doctor_id: "", date: "", time: "" };
       this.selectedSpecialization = "";
+    },
+
+    openEditProfileModal() {
+      this.showEditProfileModal = true;
+    },
+
+    closeEditProfileModal() {
+      this.showEditProfileModal = false;
+    },
+
+    openRescheduleModal(appointment) {
+      this.selectedRescheduleAppointment = appointment;
+      this.rescheduleForm = { date: appointment.date, time: appointment.time };
+      this.showRescheduleModal = true;
+    },
+
+    closeRescheduleModal() {
+      this.showRescheduleModal = false;
+      this.selectedRescheduleAppointment = null;
+      this.rescheduleForm = { date: "", time: "" };
+    },
+
+    async submitProfileUpdate() {
+      try {
+        const token = localStorage.getItem("token");
+        await axios.put(
+          `${API_BASE_URL}/api/patient/profile`,
+          {
+            username: this.profileForm.username,
+            email: this.profileForm.email,
+            age: this.profileForm.age,
+            gender: this.profileForm.gender,
+            contact_number: this.profileForm.contact_number,
+            address: this.profileForm.address,
+            height: this.profileForm.height,
+            weight: this.profileForm.weight
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        
+        alert("Profile updated successfully!");
+        this.closeEditProfileModal();
+        this.fetchDashboardData();
+      } catch (err) {
+        alert(err.response?.data?.error || "Failed to update profile");
+      }
     },
 
     async bookAppointment() {
@@ -305,6 +551,31 @@ export default {
       }
     },
 
+    async submitReschedule() {
+      if (!this.rescheduleForm.date || !this.rescheduleForm.time) {
+        alert("Please fill all required fields");
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem("token");
+        await axios.post(
+          `${API_BASE_URL}/api/patient/appointments/${this.selectedRescheduleAppointment.id}/reschedule`,
+          { 
+            date: this.rescheduleForm.date, 
+            time: this.rescheduleForm.time 
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        
+        alert("Appointment rescheduled successfully!");
+        this.closeRescheduleModal();
+        this.fetchAppointments();
+      } catch (err) {
+        alert(err.response?.data?.error || "Failed to reschedule appointment");
+      }
+    },
+
     async cancelAppointment(id) {
       if (!confirm("Are you sure you want to cancel this appointment?")) {
         return;
@@ -322,28 +593,6 @@ export default {
         this.fetchAppointments();
       } catch (err) {
         alert(err.response?.data?.error || "Failed to cancel appointment");
-      }
-    },
-
-    async rescheduleAppointment(id) {
-      const newDate = prompt("Enter new date (YYYY-MM-DD):");
-      if (!newDate) return;
-      
-      const newTime = prompt("Enter new time (HH:MM):");
-      if (!newTime) return;
-
-      try {
-        const token = localStorage.getItem("token");
-        await axios.post(
-          `${API_BASE_URL}/api/patient/appointments/${id}/reschedule`,
-          { date: newDate, time: newTime },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        
-        alert("Appointment rescheduled successfully!");
-        this.fetchAppointments();
-      } catch (err) {
-        alert(err.response?.data?.error || "Failed to reschedule appointment");
       }
     },
 
@@ -494,6 +743,28 @@ export default {
 .dept-name {
   font-size: 16px;
   color: #444;
+}
+
+.search-section {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.search-form {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.search-form .form-control {
+  flex: 1;
+  min-width: 150px;
+}
+
+.search-form .btn {
+  min-width: 100px;
 }
 
 .btn {

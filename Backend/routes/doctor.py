@@ -22,24 +22,27 @@ def dashboard():
     try:
         current_user_id = get_jwt_identity()
         
-        # Get doctor profile
+        # Check if doctor is blacklisted
         user = User.query.get(current_user_id)
         doctor = Doctor.query.filter_by(user_id=current_user_id).first()
         
         if not doctor:
             return jsonify({'error': 'Doctor profile not found'}), 404
         
-        # Get upcoming appointments for today and this week
+        if doctor.is_blacklisted:
+            return jsonify({'error': 'Your account has been blacklisted. Please contact admin.'}), 403
+        
+        # Get upcoming appointments (only Booked status)
         today = datetime.now().date()
-        week_end = today + timedelta(days=7)
+        future_end = today + timedelta(days=30)  # Get appointments for next 30 days
         
         upcoming_appointments = Appointment.query.filter(
             Appointment.doctor_id == doctor.id,
-            Appointment.date.between(today, week_end),
-            Appointment.status.in_(['Booked', 'Completed'])
-        ).all()
+            Appointment.date >= today,
+            Appointment.status == 'Booked'
+        ).order_by(Appointment.date, Appointment.time).all()
         
-        # Get all patients assigned to this doctor
+        # Get all patients assigned to this doctor (from any appointment)
         patients = db.session.query(Patient).join(Appointment).filter(
             Appointment.doctor_id == doctor.id
         ).distinct().all()
@@ -65,20 +68,24 @@ def dashboard():
                 'email': patient.user.email,
                 'age': patient.age,
                 'gender': patient.gender,
-                'contact_number': patient.contact_number
+                'contact_number': patient.contact_number,
+                'address': patient.address
             }
             patients_list.append(patient_data)
         
         return jsonify({
             'status': 'success',
             'doctor': {
+                'id': doctor.id,
                 'name': doctor.user.username,
+                'email': doctor.user.email,
                 'specialization': doctor.specialization,
                 'upcoming_appointments_count': len(appointments_list),
                 'patients_count': len(patients_list)
             },
-            'appointments': appointments_list,
-            'patients': patients_list
+            'upcoming_appointments': appointments_list,
+            'assigned_patients': patients_list,
+            'appointments': appointments_list
         }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -207,7 +214,9 @@ def cancel_appointment(appointment_id):
 def set_availability():
     """
     Set doctor's availability for the next 7 days
-    Expected JSON: {'availability': {'Monday': ['09:00-12:00', '14:00-17:00'], ...}}
+    Expected JSON can be in either format:
+    1. {'availability': {...}} OR
+    2. {day_name: {'available': bool, 'start_time': '...', 'end_time': '...'}, ...}
     """
     try:
         current_user_id = get_jwt_identity()
@@ -217,16 +226,28 @@ def set_availability():
             return jsonify({'error': 'Doctor profile not found'}), 404
         
         data = request.get_json()
-        if 'availability' not in data:
+        
+        if not data:
             return jsonify({'error': 'Availability data required'}), 400
         
+        # Handle both formats
+        if 'availability' in data:
+            availability_data = data['availability']
+        else:
+            availability_data = data
+        
+        # Validate that we have some availability data
+        if not isinstance(availability_data, dict) or len(availability_data) == 0:
+            return jsonify({'error': 'Invalid availability data format'}), 400
+        
         # Store availability as JSON string
-        doctor.availability = json.dumps(data['availability'])
+        doctor.availability = json.dumps(availability_data)
         db.session.commit()
         
         return jsonify({
             'status': 'success',
-            'message': 'Availability updated successfully'
+            'message': 'Availability updated successfully',
+            'availability': availability_data
         }), 200
     except Exception as e:
         db.session.rollback()
