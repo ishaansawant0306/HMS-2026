@@ -197,6 +197,69 @@ def blacklist_doctor(doctor_id):
         return jsonify({'error': str(e)}), 500
 
 
+@admin_bp.route('/doctors/<int:doctor_id>', methods=['DELETE'])
+@jwt_required()
+@require_role('admin')
+def delete_doctor(doctor_id):
+    """
+    Permanently delete a doctor from the system
+    """
+    try:
+        doctor = Doctor.query.get(doctor_id)
+        if not doctor:
+            return jsonify({'error': 'Doctor not found'}), 404
+        
+        # Delete associated appointments first
+        Appointment.query.filter_by(doctor_id=doctor_id).delete()
+        
+        # Delete the doctor and associated user
+        db.session.delete(doctor)
+        db.session.delete(doctor.user)
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Doctor deleted successfully'
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@admin_bp.route('/patients', methods=['GET'])
+@jwt_required()
+@require_role('admin')
+def get_all_patients():
+    """
+    Get list of all patients (non-blacklisted)
+    """
+    try:
+        patients = Patient.query.filter(Patient.is_blacklisted == False).all()
+        
+        patient_list = []
+        for patient in patients:
+            patient_data = {
+                'id': patient.id,
+                'name': patient.user.username,
+                'username': patient.user.username,
+                'email': patient.user.email,
+                'age': patient.age,
+                'gender': patient.gender,
+                'contact_number': patient.contact_number,
+                'address': patient.address,
+                'created_at': patient.created_at.isoformat()
+            }
+            patient_list.append(patient_data)
+        
+        return jsonify({
+            'status': 'success',
+            'patients': patient_list,
+            'count': len(patient_list)
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @admin_bp.route('/appointments', methods=['GET'])
 @jwt_required()
 @require_role('admin')

@@ -438,3 +438,40 @@ def get_medical_history():
         }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@patient_bp.route('/export/treatment-history', methods=['POST'])
+@jwt_required()
+@require_role('patient')
+def export_treatment_history():
+    """
+    Trigger async CSV export of patient's treatment history
+    Uses Celery for background job processing
+    """
+    try:
+        from tasks import export_patient_treatment_history
+        
+        current_user_id = get_jwt_identity()
+        patient = Patient.query.filter_by(user_id=current_user_id).first()
+        
+        if not patient:
+            return jsonify({'error': 'Patient profile not found'}), 404
+        
+        # Trigger background task
+        task = export_patient_treatment_history.delay(patient.id)
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Export job started. You will receive an email with the file.',
+            'task_id': task.id,
+            'task_status': task.status
+        }), 202
+    
+    except ImportError:
+        # Celery not configured, return error
+        return jsonify({
+            'error': 'Export service not available. Please contact administrator.'
+        }), 503
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+

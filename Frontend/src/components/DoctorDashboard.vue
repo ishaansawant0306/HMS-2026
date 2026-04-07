@@ -10,12 +10,24 @@
     </div>
 
     <div class="page-wrapper">
+      <!-- ALERTS -->
+      <div v-if="error" class="alert alert-danger">{{ error }}</div>
+      <div v-if="successMessage" class="alert alert-success">{{ successMessage }}</div>
+
+      <!-- WELCOME CARD -->
       <section class="top-card">
-        <h1 class="welcome-title">Welcome {{ doctor.name }}</h1>
+        <div class="welcome-section">
+          <h1 class="welcome-title">Welcome {{ doctor.name }}</h1>
+          <p class="doctor-info">{{ doctor.specialization }}</p>
+        </div>
+        <button class="btn btn-green large-btn" @click="openAvailabilityModal">
+          Set Availability
+        </button>
       </section>
 
+      <!-- UPCOMING APPOINTMENTS CARD -->
       <section class="content-card">
-        <h2 class="section-title">Upcoming Appointments</h2>
+        <h2 class="section-title">Upcoming Appointments ({{ appointments.length }})</h2>
 
         <div class="table-shell">
           <table class="dashboard-table">
@@ -23,20 +35,29 @@
               <tr>
                 <th>Sr No.</th>
                 <th>Patient Name</th>
-                <th>Patient History</th>
+                <th>Date & Time</th>
+                <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="(appt, index) in appointments" :key="appt.id">
-                <td>{{ 1001 + index }}.</td>
+                <td>{{ 1001 + index }}</td>
                 <td>{{ appt.patient_name }}</td>
-                <td>
-                  <button class="btn btn-blue">update</button>
-                </td>
+                <td>{{ appt.date }} {{ appt.time }}</td>
+                <td><span class="badge badge-booked">{{ appt.status }}</span></td>
                 <td class="action-group">
-                  <button class="btn btn-green">mark as complete</button>
-                  <button class="btn btn-red-outline">cancel</button>
+                  <button class="btn btn-blue btn-sm" @click="openTreatmentModal(appt)">
+                    Complete & Add Treatment
+                  </button>
+                  <button class="btn btn-red-outline btn-sm" @click="cancelAppointment(appt.id)">
+                    Cancel
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="appointments.length === 0">
+                <td colspan="5" style="text-align: center; color: #999; padding: 20px;">
+                  No upcoming appointments
                 </td>
               </tr>
             </tbody>
@@ -44,46 +65,268 @@
         </div>
       </section>
 
+      <!-- ASSIGNED PATIENTS CARD -->
       <section class="content-card">
-        <h2 class="section-title">Assigned Patients</h2>
+        <h2 class="section-title">Assigned Patients ({{ patients.length }})</h2>
 
         <div class="patient-list">
           <div v-for="patient in patients" :key="patient.id" class="patient-row">
-            <span class="patient-name">{{ patient.name }}</span>
-            <button class="btn btn-blue">view</button>
+            <div class="patient-info">
+              <span class="patient-name">{{ patient.name }}</span>
+              <span class="patient-email">{{ patient.email }}</span>
+            </div>
+            <button class="btn btn-blue" @click="viewPatientHistory(patient.id)">
+              View History
+            </button>
+          </div>
+          <div v-if="patients.length === 0" style="text-align: center; color: #999; padding: 20px;">
+            No assigned patients
           </div>
         </div>
-
-        <div class="bottom-action">
-          <button class="btn btn-green large-btn">Provide Availability</button>
-        </div>
       </section>
+
+      <!-- TREATMENT MODAL -->
+      <div v-if="showTreatmentModal" class="modal-overlay" @click="closeTreatmentModal">
+        <div class="modal-box" @click.stop>
+          <div class="modal-header">
+            <h3>Add Treatment Record</h3>
+            <button class="close-btn" @click="closeTreatmentModal">&times;</button>
+          </div>
+
+          <div class="modal-body">
+            <p style="color: #666; margin-bottom: 16px;">
+              <strong>Patient:</strong> {{ selectedAppointment?.patient_name }}<br>
+              <strong>Date:</strong> {{ selectedAppointment?.date }}
+            </p>
+
+            <div class="form-group">
+              <label>Diagnosis: <span style="color: red;">*</span></label>
+              <textarea v-model="treatmentForm.diagnosis" placeholder="Enter diagnosis" rows="3" class="form-textarea"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>Prescription:</label>
+              <textarea v-model="treatmentForm.prescription" placeholder="Enter prescription details" rows="3" class="form-textarea"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>Notes:</label>
+              <textarea v-model="treatmentForm.notes" placeholder="Additional notes" rows="2" class="form-textarea"></textarea>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-outline-gray" @click="closeTreatmentModal">Cancel</button>
+            <button class="btn btn-green" @click="submitTreatment">Save & Mark Complete</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- AVAILABILITY MODAL -->
+      <div v-if="showAvailabilityModal" class="modal-overlay" @click="closeAvailabilityModal">
+        <div class="modal-box modal-lg" @click.stop>
+          <div class="modal-header">
+            <h3>Set Your Weekly Availability</h3>
+            <button class="close-btn" @click="closeAvailabilityModal">&times;</button>
+          </div>
+
+          <div class="modal-body availability-body">
+            <div v-for="(config, day) in availabilityForm" :key="day" class="availability-row">
+              <div class="day-name">{{ day.charAt(0).toUpperCase() + day.slice(1) }}</div>
+              <label class="checkbox-label">
+                <input type="checkbox" v-model="config.available" />
+                Available
+              </label>
+              <div v-if="config.available" class="time-inputs">
+                <input type="time" v-model="config.start_time" />
+                <span>to</span>
+                <input type="time" v-model="config.end_time" />
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-outline-gray" @click="closeAvailabilityModal">Cancel</button>
+            <button class="btn btn-green" @click="submitAvailability">Save Availability</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
+import axios from "axios";
+
+const API_BASE_URL = "http://localhost:5000";
+
 export default {
   name: "DoctorDashboard",
   data() {
     return {
       doctor: {
-        id: 101,
-        name: "Dr. Abcde",
-        email: "testdoctor@hospital.com",
-        specialization: "General Medicine",
-        availability: "Mon-Fri 9AM - 5PM"
+        id: null,
+        name: "",
+        email: "",
+        specialization: ""
       },
-      appointments: [
-        { id: 1, patient_name: "Mr. abcde", date: "2026-04-10", time: "09:00", status: "Booked" }
-      ],
-      patients: [
-        { id: 1, name: "Mr. abcde" },
-        { id: 2, name: "Miss. Pqrst" }
-      ]
+      appointments: [],
+      patients: [],
+      loading: true,
+      error: "",
+      successMessage: "",
+      
+      // Modals
+      showTreatmentModal: false,
+      showAvailabilityModal: false,
+      selectedAppointment: null,
+      
+      // Form data
+      treatmentForm: {
+        diagnosis: "",
+        prescription: "",
+        notes: ""
+      },
+      availabilityForm: {
+        monday: { available: true, start_time: "09:00", end_time: "17:00" },
+        tuesday: { available: true, start_time: "09:00", end_time: "17:00" },
+        wednesday: { available: true, start_time: "09:00", end_time: "17:00" },
+        thursday: { available: true, start_time: "09:00", end_time: "17:00" },
+        friday: { available: true, start_time: "09:00", end_time: "17:00" },
+        saturday: { available: false, start_time: "09:00", end_time: "17:00" },
+        sunday: { available: false, start_time: "09:00", end_time: "17:00" }
+      }
     };
   },
+
+  mounted() {
+    this.fetchDashboardData();
+  },
+
   methods: {
+    async fetchDashboardData() {
+      try {
+        const token = localStorage.getItem("token");
+        const headers = { Authorization: `Bearer ${token}` };
+
+        // Fetch doctor dashboard
+        const dashRes = await axios.get(`${API_BASE_URL}/api/doctor/dashboard`, { headers });
+        this.doctor = dashRes.data.doctor || {};
+        this.appointments = dashRes.data.upcoming_appointments || [];
+        this.patients = dashRes.data.assigned_patients || [];
+
+        this.error = "";
+        this.loading = false;
+      } catch (err) {
+        this.error = "Failed to load dashboard data";
+        console.error("Error fetching dashboard:", err);
+        this.loading = false;
+      }
+    },
+
+    openTreatmentModal(appointment) {
+      this.selectedAppointment = appointment;
+      this.treatmentForm = { diagnosis: "", prescription: "", notes: "" };
+      this.showTreatmentModal = true;
+    },
+
+    closeTreatmentModal() {
+      this.showTreatmentModal = false;
+      this.selectedAppointment = null;
+    },
+
+    async submitTreatment() {
+      if (!this.treatmentForm.diagnosis) {
+        alert("Diagnosis is required");
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem("token");
+        await axios.post(
+          `${API_BASE_URL}/api/doctor/appointments/${this.selectedAppointment.id}/complete`,
+          this.treatmentForm,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        this.successMessage = "Treatment recorded successfully!";
+        this.closeTreatmentModal();
+        this.fetchDashboardData();
+        setTimeout(() => { this.successMessage = ""; }, 3000);
+      } catch (err) {
+        alert(err.response?.data?.error || "Failed to record treatment");
+      }
+    },
+
+    async cancelAppointment(appointmentId) {
+      if (!confirm("Are you sure you want to cancel this appointment?")) return;
+
+      try {
+        const token = localStorage.getItem("token");
+        await axios.post(
+          `${API_BASE_URL}/api/doctor/appointments/${appointmentId}/cancel`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        this.successMessage = "Appointment cancelled successfully!";
+        this.fetchDashboardData();
+        setTimeout(() => { this.successMessage = ""; }, 3000);
+      } catch (err) {
+        alert(err.response?.data?.error || "Failed to cancel appointment");
+      }
+    },
+
+    openAvailabilityModal() {
+      this.showAvailabilityModal = true;
+    },
+
+    closeAvailabilityModal() {
+      this.showAvailabilityModal = false;
+    },
+
+    async submitAvailability() {
+      try {
+        const token = localStorage.getItem("token");
+        await axios.post(
+          `${API_BASE_URL}/api/doctor/availability`,
+          this.availabilityForm,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        this.successMessage = "Availability updated successfully!";
+        this.closeAvailabilityModal();
+        setTimeout(() => { this.successMessage = ""; }, 3000);
+      } catch (err) {
+        alert(err.response?.data?.error || "Failed to update availability");
+      }
+    },
+
+    async viewPatientHistory(patientId) {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await axios.get(
+          `${API_BASE_URL}/api/doctor/patient/${patientId}/history`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const history = response.data.history || [];
+        let historyText = "Patient Treatment History:\n\n";
+        if (history.length === 0) {
+          historyText += "No previous appointments.";
+        } else {
+          history.forEach((item, idx) => {
+            historyText += `${idx + 1}. Date: ${item.date}\n`;
+            historyText += `   Diagnosis: ${item.diagnosis || "N/A"}\n`;
+            historyText += `   Treatment: ${item.treatment || "N/A"}\n\n`;
+          });
+        }
+        alert(historyText);
+      } catch (err) {
+        alert("Failed to load patient history");
+      }
+    },
+
     logout() {
       localStorage.removeItem("token");
       localStorage.removeItem("role");
@@ -112,6 +355,7 @@ export default {
   align-items: center;
   justify-content: center;
   border-bottom: 1px solid #eee;
+  z-index: 1000;
 }
 
 .nav-left {
@@ -132,8 +376,16 @@ export default {
 }
 
 .btn-logout {
-  background: #e35757;
+  background: #e35757 !important;
   color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn-logout:hover {
+  background: #d43d3d !important;
 }
 
 .page-wrapper {
@@ -142,6 +394,27 @@ export default {
   padding: 0 30px;
 }
 
+/* ALERTS */
+.alert {
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  border-left: 4px solid;
+}
+
+.alert-danger {
+  background: #f8d7da;
+  color: #721c24;
+  border-left-color: #f5c6cb;
+}
+
+.alert-success {
+  background: #d4edda;
+  color: #155724;
+  border-left-color: #c3e6cb;
+}
+
+/* CARDS */
 .top-card,
 .content-card {
   background: #ffffff;
@@ -156,24 +429,24 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 20px;
+}
+
+.welcome-section {
+  flex: 1;
 }
 
 .welcome-title {
-  margin: 0;
+  margin: 0 0 6px;
   font-size: 26px;
   font-weight: 700;
   color: #1f1f1f;
 }
 
-.logout-btn {
-  border: 1px solid #d8d8d8;
-  background: #fff;
-  color: #555;
-  border-radius: 8px;
-  padding: 10px 16px;
+.doctor-info {
+  margin: 0;
   font-size: 14px;
-  cursor: pointer;
-  font-weight: 600;
+  color: #666;
 }
 
 .content-card {
@@ -188,6 +461,7 @@ export default {
   color: #222;
 }
 
+/* TAB LE */
 .table-shell {
   border: 1px solid #e6e6e6;
   border-radius: 8px;
@@ -217,12 +491,17 @@ export default {
   color: #2d2d2d;
 }
 
+.dashboard-table tbody tr:hover {
+  background: #f9f9f9;
+}
+
 .action-group {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
 
+/* PATIENT LIST */
 .patient-list {
   display: flex;
   flex-direction: column;
@@ -237,19 +516,32 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  transition: background 0.2s;
+}
+
+.patient-row:hover {
+  background: #f9f9f9;
+}
+
+.patient-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .patient-name {
-  color: #444;
+  color: #222;
   font-size: 16px;
+  font-weight: 600;
 }
 
-.bottom-action {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 18px;
+.patient-email {
+  color: #999;
+  font-size: 12px;
 }
 
+/* BUTTONS */
 .btn {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -257,8 +549,13 @@ export default {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: 0.2s ease;
+  transition: all 0.2s;
   text-transform: lowercase;
+}
+
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 12px;
 }
 
 .large-btn {
@@ -267,8 +564,7 @@ export default {
 
 .btn-green {
   background: #16c341;
-  border-color: #16c341;
-  color: #fff;
+  color: white;
 }
 
 .btn-green:hover {
@@ -277,8 +573,7 @@ export default {
 
 .btn-blue {
   background: #2f80ed;
-  border-color: #2f80ed;
-  color: #fff;
+  color: white;
 }
 
 .btn-blue:hover {
@@ -295,11 +590,186 @@ export default {
   background: #fff5f5;
 }
 
+.btn-outline-gray {
+  background: white;
+  color: #565656;
+  border: 1px solid #cfcfcf;
+}
+
+.btn-outline-gray:hover {
+  background: #f5f5f5;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge-booked {
+  background: #cfe2ff;
+  color: #084298;
+}
+
+/* MODAL */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.modal-box {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-box.modal-lg {
+  max-width: 600px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.availability-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.availability-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #eee;
+  border-radius: 6px;
+}
+
+.day-name {
+  width: 80px;
+  font-weight: 600;
+  color: #333;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.checkbox-label input {
+  cursor: pointer;
+}
+
+.time-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.time-inputs input {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.time-inputs span {
+  font-size: 13px;
+  color: #999;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.form-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: #2f80ed;
+  box-shadow: 0 0 0 3px rgba(47, 128, 237, 0.1);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 20px;
+  border-top: 1px solid #eee;
+}
+
 @media (max-width: 768px) {
   .top-card {
     flex-direction: column;
     align-items: flex-start;
-    gap: 14px;
   }
 
   .dashboard-table th,
@@ -314,11 +784,17 @@ export default {
     gap: 10px;
   }
 
-  .bottom-action {
-    justify-content: stretch;
+  .action-group {
+    width: 100%;
   }
 
-  .large-btn {
+  .availability-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .time-inputs {
+    margin-left: 0;
     width: 100%;
   }
 }
