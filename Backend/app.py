@@ -1,10 +1,9 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from datetime import timedelta
 import os
-from models import db
+from extensions import db, cache, mail
 from routes import register_blueprints
 from init_db import init_admin, init_test_doctor
 
@@ -43,9 +42,17 @@ def create_app():
     app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', '')
     app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD', '')
     app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@medizentrum.com')
+
+    # Caching Configuration
+    app.config['CACHE_TYPE'] = os.getenv('CACHE_TYPE', 'RedisCache')
+    app.config['CACHE_REDIS_URL'] = os.getenv('CACHE_REDIS_URL', 'redis://localhost:6379/1')
+    app.config['CACHE_DEFAULT_TIMEOUT'] = int(os.getenv('CACHE_DEFAULT_TIMEOUT', '60'))
+    app.config['CACHE_KEY_PREFIX'] = os.getenv('CACHE_KEY_PREFIX', 'hms_')
     
     # Initialize extensions
     db.init_app(app)
+    cache.init_app(app)
+    mail.init_app(app)
     jwt = JWTManager(app)
     
     # Initialize Celery
@@ -57,6 +64,7 @@ def create_app():
         print(f"Warning: Celery not initialized: {str(e)}")
     
     register_blueprints(app)
+    import tasks  # Ensure Celery tasks are discovered when the app starts
     
     with app.app_context():
         # Create all database tables
@@ -73,10 +81,6 @@ app = create_app()
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
-
-
-if __name__ == '__main__':
-    app.run(debug=True)
 
 
 

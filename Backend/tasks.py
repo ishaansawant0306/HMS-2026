@@ -4,16 +4,20 @@ Celery tasks for HMS background jobs
 - Monthly doctor activity reports
 - CSV export of patient treatment history
 """
+import os
+import csv
+import requests
 from celery import shared_task
 from datetime import datetime, timedelta
+from flask_mail import Message
 from models import db, Appointment, Patient, Doctor, Treatment, User
-from flask_mail import Mail, Message
-import csv
-import io
-import json
+from extensions import mail
+
+NOTIFICATION_WEBHOOK_URL = os.getenv('NOTIFICATION_WEBHOOK_URL')
+EXPORTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'exports')
+os.makedirs(EXPORTS_DIR, exist_ok=True)
 
 # Note: Configure Flask-Mail in your app.py for email functionality
-mail = None
 
 # ============================================================================
 # TASK 1: DAILY APPOINTMENT REMINDERS
@@ -42,7 +46,6 @@ def send_daily_appointment_reminders():
             doctor_name = appointment.doctor.user.username
             reminder_time = appointment.time.strftime("%H:%M")
             
-            # Send email reminder
             try:
                 subject = "Appointment Reminder - MediZentrum"
                 body = f"""
@@ -62,15 +65,24 @@ If you need to cancel or reschedule, please log in to your MediZentrum account.
 Best regards,
 MediZentrum Hospital Management System
                 """
-                
-                # Uncomment below when Flask-Mail is configured
-                # send_email(patient_email, subject, body)
-                
+
+                send_notification(
+                    recipient_email=patient_email,
+                    subject=subject,
+                    body=body,
+                    webhook_payload={
+                        'type': 'appointment_reminder',
+                        'patient_email': patient_email,
+                        'appointment_id': appointment.id,
+                        'doctor_name': doctor_name,
+                        'appointment_time': reminder_time,
+                        'appointment_date': str(today)
+                    }
+                )
                 reminder_count += 1
-                print(f"Reminder sent to {patient_email} for appointment at {reminder_time}")
-                
+                print(f"Reminder triggered for {patient_email} at {reminder_time}")
             except Exception as e:
-                print(f"Failed to send reminder to {patient_email}: {str(e)}")
+                print(f"Failed to trigger reminder for {patient_email}: {str(e)}")
         
         return {
             'status': 'success',
@@ -192,17 +204,26 @@ def generate_monthly_doctor_report(doctor_id=None, month=None, year=None):
             </html>
             """
             
-            # Send email with report
             try:
                 subject = f"Monthly Activity Report - {month}/{year}"
-                # Uncomment below when Flask-Mail is configured
-                # send_email_with_html(doctor_email, subject, report_html)
-                
+                send_notification(
+                    recipient_email=doctor_email,
+                    subject=subject,
+                    body=f"Dear Dr. {doctor_name},\n\nYour activity report for {month}/{year} is attached. Please review the summary in your inbox.\n\nBest regards,\nMediZentrum Hospital Management System",
+                    html=report_html,
+                    webhook_payload={
+                        'type': 'monthly_activity_report',
+                        'doctor_email': doctor_email,
+                        'doctor_id': doctor.id,
+                        'month': month,
+                        'year': year,
+                        'appointments': len(appointments)
+                    }
+                )
                 reports_generated += 1
-                print(f"Monthly report sent to {doctor_email} for {month}/{year}")
-                
+                print(f"Monthly report triggered for {doctor_email} for {month}/{year}")
             except Exception as e:
-                print(f"Failed to send report to {doctor_email}: {str(e)}")
+                print(f"Failed to trigger report for {doctor_email}: {str(e)}")
         
         return {
             'status': 'success',
@@ -267,7 +288,7 @@ def export_patient_treatment_history(patient_id):
         
         # Create CSV file
         filename = f"treatment_history_{patient.user.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        filepath = f"exports/{filename}"
+        filepath = os.path.join(EXPORTS_DIR, filename)
         
         # Write CSV
         try:
@@ -275,11 +296,9 @@ def export_patient_treatment_history(patient_id):
                 writer = csv.writer(f)
                 writer.writerows(csv_data)
             
-            # Send notification email to patient
-            try:
-                patient_email = patient.user.email
-                subject = "Your Treatment History Export - MediZentrum"
-                body = f"""
+            patient_email = patient.user.email
+            subject = "Your Treatment History Export - MediZentrum"
+            body = f"""
 Dear {patient.user.username},
 
 Your treatment history has been successfully exported and is ready for download.
@@ -288,16 +307,24 @@ File: {filename}
 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 Total Records: {len(appointments)}
 
-You can download this file from your MediZentrum dashboard.
+Please check your notifications or contact support if you do not see the download link.
 
 Best regards,
 MediZentrum Hospital Management System
                 """
-                # Uncomment below when Flask-Mail is configured
-                # send_email(patient_email, subject, body)
-                
-            except Exception as e:
-                print(f"Failed to send notification email: {str(e)}")
+            send_notification(
+                recipient_email=patient_email,
+                subject=subject,
+                body=body,
+                webhook_payload={
+                    'type': 'treatment_history_export',
+                    'patient_email': patient_email,
+                    'patient_id': patient_id,
+                    'filename': filename,
+                    'filepath': filepath,
+                    'records_exported': len(appointments)
+                }
+            )
             
             return {
                 'status': 'success',
@@ -324,29 +351,47 @@ MediZentrum Hospital Management System
 # HELPER FUNCTIONS
 # ============================================================================
 
-def send_email(recipient_email, subject, body):
-    """Send plain text email"""
-    if not mail:
-        print(f"[EMAIL] To: {recipient_email}, Subject: {subject}")
-        return
-    
-    msg = Message(
-        subject=subject,
-        recipients=[recipient_email],
-        body=body
-    )
-    mail.send(msg)
+def send_notification(recipient_email, subject, body, html=None, webhook_payload=None):
+    """Send a notification by email first, then fallback to webhook if configured."""
+    sent = False
+    if mail:
+        try:
+            msg = Message(
+                subject=subject,
+                recipients=[recipient_email],
+                body=body,
+                html=html
+            )
+            mail.send(msg)
+            sent = True
+            print(f"Notification email sent to {recipient_email}")
+        except Exception as e:
+            print(f"Email send failed for {recipient_email}: {str(e)}")
+
+    if not sent and NOTIFICATION_WEBHOOK_URL:
+        sent = send_via_webhook(webhook_payload or {
+            'type': 'notification',
+            'recipient_email': recipient_email,
+            'subject': subject,
+            'body': body
+        })
+
+    if not sent:
+        print(f"Notification fallback: no email or webhook configured for {recipient_email}")
+
+    return sent
 
 
-def send_email_with_html(recipient_email, subject, html_body):
-    """Send HTML email"""
-    if not mail:
-        print(f"[EMAIL] To: {recipient_email}, Subject: {subject}")
-        return
-    
-    msg = Message(
-        subject=subject,
-        recipients=[recipient_email],
-        html=html_body
-    )
-    mail.send(msg)
+def send_via_webhook(payload):
+    """Send a webhook notification if configured."""
+    if not NOTIFICATION_WEBHOOK_URL:
+        return False
+
+    try:
+        response = requests.post(NOTIFICATION_WEBHOOK_URL, json=payload, timeout=10)
+        response.raise_for_status()
+        print(f"Webhook notification sent to {NOTIFICATION_WEBHOOK_URL}")
+        return True
+    except Exception as e:
+        print(f"Webhook notification failed: {str(e)}")
+        return False

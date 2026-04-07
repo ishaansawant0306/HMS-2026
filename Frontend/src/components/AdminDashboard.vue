@@ -39,14 +39,14 @@
       <!-- DOCTORS SECTION -->
       <div class="card">
         <div class="card-header">
-          <h2 class="card-title">Registered Doctors ({{ allDoctors.length }})</h2>
+          <h2 class="card-title">Registered Doctors ({{ filteredDoctors.length }})</h2>
           <button class="btn btn-green" @click="openAddDoctorModal">+ Create Doctor</button>
         </div>
 
         <div class="simple-list">
-          <div v-for="doctor in allDoctors" :key="doctor.id" class="list-row" :class="{ 'blacklisted-row': doctor.is_blacklisted }">
+          <div v-for="doctor in filteredDoctors" :key="doctor.id" class="list-row" :class="{ 'blacklisted-row': doctor.is_blacklisted }">
             <div class="list-info">
-              <div class="list-name" :class="{ strikethrough: doctor.is_blacklisted }">{{ doctor.name || doctor.username }}</div>
+              <div class="list-name" :class="{ strikethrough: doctor.is_blacklisted }">Dr. {{ doctor.name || doctor.username }}</div>
               <div class="list-subtext">{{ doctor.specialization }} | {{ doctor.email }}</div>
             </div>
             <div class="list-actions">
@@ -58,7 +58,7 @@
             </div>
           </div>
 
-          <div v-if="allDoctors.length === 0" class="list-row empty-row">
+          <div v-if="filteredDoctors.length === 0" class="list-row empty-row">
             <span>No doctors found</span>
           </div>
         </div>

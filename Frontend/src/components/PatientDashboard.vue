@@ -11,11 +11,19 @@
 
       <section class="card welcome-card">
         <div class="welcome-row">
-          <h2 class="section-title">Welcome {{ patient.name }}</h2>
+          <h2 class="section-title">Welcome {{ patientDisplayName }}</h2>
           <div class="top-links">
             <button class="link-btn" @click="openEditProfileModal">edit profile</button>
             <span>|</span>
             <button class="link-btn" @click="showHistoryModal = true">History</button>
+            <span>|</span>
+            <button class="link-btn" @click="startHistoryExport">Export History</button>
+          </div>
+        </div>
+        <div v-if="exportTaskId" class="export-status-row">
+          <div class="export-status">
+            <strong>Export:</strong> {{ exportTaskStatus }}
+            <span v-if="exportResult && exportResult.filename">• <a :href="downloadLink" target="_blank">Download {{ exportResult.filename }}</a></span>
           </div>
         </div>
       </section>
@@ -219,8 +227,7 @@
 
           <div class="modal-body">
             <p style="margin-bottom: 16px;"><strong>Current Appointment:</strong><br>
-              Dr. {{ selectedRescheduleAppointment?.doctor_name }} - {{ selectedRescheduleAppointment?.date }} {{ selectedRescheduleAppointment?.time }}
-            </p>
+                Dr. {{ selectedRescheduleAppointment && selectedRescheduleAppointment.doctor_name }} - {{ selectedRescheduleAppointment && selectedRescheduleAppointment.date }} {{ selectedRescheduleAppointment && selectedRescheduleAppointment.time }}
 
             <div class="form-group">
               <label>New Date:</label>
@@ -321,6 +328,10 @@ export default {
       showEditProfileModal: false,
       showRescheduleModal: false,
       showDoctorsModal: false,
+      exportLoading: false,
+      exportTaskId: null,
+      exportTaskStatus: "",
+      exportResult: null,
       selectedSpecialization: "",
       selectedRescheduleAppointment: null,
       specializationDoctors: [],
@@ -365,6 +376,21 @@ export default {
         const apptDate = new Date(appt.date);
         return apptDate < today && appt.status === "Completed";
       });
+    },
+    patientDisplayName() {
+      const rawName = this.patient.name || this.patient.email || "";
+      if (!rawName) return "";
+      if (rawName.includes("@")) {
+        const firstSegment = rawName.split("@")[0];
+        const firstName = firstSegment.split(/[._\- ]+/)[0] || firstSegment;
+        return firstName.charAt(0).toUpperCase() + firstName.slice(1);
+      }
+      return rawName.split(" ")[0] || rawName;
+    },
+    downloadLink() {
+      return this.exportResult?.filename
+        ? `${API_BASE_URL}/api/patient/export/download/${encodeURIComponent(this.exportResult.filename)}`
+        : "";
     }
   },
   mounted() {
@@ -627,6 +653,57 @@ export default {
         console.error("Error fetching doctors by specialization:", err);
       }
     },
+    async startHistoryExport() {
+      try {
+        const token = localStorage.getItem("token");
+        this.exportLoading = true;
+        this.exportTaskId = null;
+        this.exportTaskStatus = "Starting";
+        this.exportResult = null;
+
+        const response = await axios.post(
+          `${API_BASE_URL}/api/patient/export/treatment-history`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const taskId = response.data.task_id;
+        this.exportTaskId = taskId;
+        this.exportTaskStatus = response.data.task_status || "PENDING";
+
+        const pollInterval = setInterval(async () => {
+          try {
+            const statusResponse = await axios.get(`${API_BASE_URL}/api/patient/export/status/${taskId}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+
+            this.exportTaskStatus = statusResponse.data.task_status;
+            this.exportResult = statusResponse.data.task_result;
+
+            if (["SUCCESS", "FAILURE", "REVOKED"].includes(this.exportTaskStatus)) {
+              clearInterval(pollInterval);
+              this.exportLoading = false;
+              if (this.exportTaskStatus === "SUCCESS") {
+                alert("Export completed! Download the CSV file from the link shown.");
+              } else {
+                alert("Export failed or was cancelled. Please try again later.");
+              }
+            }
+          } catch (err) {
+            console.error("Error checking export status:", err);
+            clearInterval(pollInterval);
+            this.exportLoading = false;
+            this.exportTaskStatus = "ERROR";
+            alert("Failed to check export status. Please try again.");
+          }
+        }, 3000);
+      } catch (err) {
+        this.exportLoading = false;
+        this.exportTaskStatus = "ERROR";
+        console.error("Error starting export:", err);
+        alert(err.response?.data?.error || "Failed to start export");
+      }
+    },
 
     closeDoctorsModal() {
       this.showDoctorsModal = false;
@@ -745,12 +822,18 @@ export default {
   font-size: 14px;
 }
 
-.link-btn {
-  background: transparent;
-  border: none;
-  color: #555;
-  cursor: pointer;
+.export-status-row {
+  margin-top: 12px;
+}
+
+.export-status {
+  padding: 10px 14px;
+  background: #f0f8ff;
+  border: 1px solid #c7def9;
+  border-radius: 8px;
+  color: #334d6e;
   font-size: 14px;
+}
   text-decoration: underline;
 }
 

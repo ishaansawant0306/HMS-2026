@@ -23,7 +23,17 @@ celery_app.conf.update(
     task_track_started=True,
     task_time_limit=30 * 60,  # 30 minutes
     result_expires=3600,  # Results expire in 1 hour
+    imports=['tasks'],
 )
+
+# Load beat schedule and task routing configuration
+try:
+    from celery_beat_conf import CELERY_BEAT_SCHEDULE, CELERY_TASK_ROUTES, CELERY_CONFIG
+    celery_app.conf.beat_schedule = CELERY_BEAT_SCHEDULE
+    celery_app.conf.task_routes = CELERY_TASK_ROUTES
+    celery_app.conf.update(CELERY_CONFIG)
+except ImportError:
+    pass
 
 def make_celery(app: Flask):
     """Create Celery instance configured with Flask app"""

@@ -134,7 +134,33 @@ In a new terminal:
 cd Backend
 celery -A tasks worker --loglevel=info
 ```
+### 5. Email & Webhook Notifications
 
+The background task system supports two notification paths:
+
+1. **Email via SMTP**
+   - Use Gmail SMTP to deliver reminders and reports.
+   - In `Backend/.env` or environment variables, set:
+     ```env
+     MAIL_SERVER=smtp.gmail.com
+     MAIL_PORT=587
+     MAIL_USE_TLS=True
+     MAIL_USERNAME=your-gmail-address@gmail.com
+     MAIL_PASSWORD=your-gmail-app-password
+     MAIL_DEFAULT_SENDER=your-gmail-address@gmail.com
+     ```
+   - If using Gmail, create an App Password for the account and use it as `MAIL_PASSWORD`.
+
+2. **Webhook fallback**
+   - If email is unavailable or you want to inspect notifications manually, point `NOTIFICATION_WEBHOOK_URL` to a webhook receiver.
+   - For testing, use a service like `https://webhook.site/` or `https://requestbin.com/`.
+   - Example:
+     ```env
+     NOTIFICATION_WEBHOOK_URL=https://webhook.site/your-generated-url
+     ```
+   - The application will send JSON payloads for reminders, reports, and export status.
+
+With Redis and Celery running, patient exports are triggered from the dashboard and tracked through the async status endpoint.
 ## 📖 Usage
 
 ### Admin Access

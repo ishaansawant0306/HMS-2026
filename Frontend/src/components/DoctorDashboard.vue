@@ -85,6 +85,40 @@
         </div>
       </section>
 
+      <!-- PATIENT HISTORY MODAL -->
+      <div v-if="showPatientHistoryModal" class="modal-overlay" @click="closePatientHistoryModal">
+        <div class="modal-box" @click.stop>
+          <div class="modal-header">
+            <h3>Patient History - {{ (selectedHistoryPatient && selectedHistoryPatient.name) || 'Patient' }}</h3>
+            <button class="close-btn" @click="closePatientHistoryModal">&times;</button>
+          </div>
+
+          <div class="modal-body">
+            <div v-if="patientHistory.length === 0" class="empty-cell">No treatment history found.</div>
+            <div v-for="item in patientHistory" :key="item.appointment_id" class="history-item">
+              <h4>{{ item.date }} {{ item.time }}</h4>
+              <div class="form-group">
+                <label>Diagnosis:</label>
+                <textarea v-model="item.diagnosis" rows="3" class="form-textarea"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Prescription:</label>
+                <textarea v-model="item.prescription" rows="3" class="form-textarea"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Notes:</label>
+                <textarea v-model="item.notes" rows="2" class="form-textarea"></textarea>
+              </div>
+              <div class="modal-actions">
+                <button class="btn btn-outline-gray" @click="closePatientHistoryModal">Close</button>
+                <button class="btn btn-green" @click="updateHistoryItem(item)">Save Changes</button>
+              </div>
+              <hr />
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- TREATMENT MODAL -->
       <div v-if="showTreatmentModal" class="modal-overlay" @click="closeTreatmentModal">
         <div class="modal-box" @click.stop>
@@ -179,6 +213,9 @@ export default {
       // Modals
       showTreatmentModal: false,
       showAvailabilityModal: false,
+      showPatientHistoryModal: false,
+      patientHistory: [],
+      selectedHistoryPatient: null,
       selectedAppointment: null,
       
       // Form data
@@ -319,20 +356,46 @@ export default {
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        const history = response.data.history || [];
-        let historyText = "Patient Treatment History:\n\n";
-        if (history.length === 0) {
-          historyText += "No previous appointments.";
-        } else {
-          history.forEach((item, idx) => {
-            historyText += `${idx + 1}. Date: ${item.date}\n`;
-            historyText += `   Diagnosis: ${item.diagnosis || "N/A"}\n`;
-            historyText += `   Treatment: ${item.treatment || "N/A"}\n\n`;
-          });
-        }
-        alert(historyText);
+        this.selectedHistoryPatient = response.data.patient || null;
+        this.patientHistory = (response.data.history || []).map(item => ({
+          ...item,
+          diagnosis: item.diagnosis || "",
+          prescription: item.prescription || "",
+          notes: item.notes || ""
+        }));
+        this.showPatientHistoryModal = true;
       } catch (err) {
-        alert("Failed to load patient history");
+        alert(err.response?.data?.error || "Failed to load patient history");
+      }
+    },
+
+    async closePatientHistoryModal() {
+      this.showPatientHistoryModal = false;
+      this.patientHistory = [];
+      this.selectedHistoryPatient = null;
+    },
+
+    async updateHistoryItem(item) {
+      if (!item.diagnosis) {
+        alert("Diagnosis is required to save history updates.");
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem("token");
+        await axios.post(
+          `${API_BASE_URL}/api/doctor/appointments/${item.appointment_id}/complete`,
+          {
+            diagnosis: item.diagnosis,
+            prescription: item.prescription,
+            notes: item.notes
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        alert("History updated successfully!");
+      } catch (err) {
+        alert(err.response?.data?.error || "Failed to update history");
       }
     },
 
