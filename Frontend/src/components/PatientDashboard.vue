@@ -110,6 +110,51 @@
         </div>
       </section>
 
+      <section class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h2 class="section-title" style="margin-bottom: 0;">Past Appointments & Medical History</h2>
+          <button class="btn btn-outline-blue" @click="exportHistory" :disabled="exportLoading">
+            <span v-if="exportLoading">Processing...</span>
+            <span v-else>Export CSV</span>
+          </button>
+        </div>
+
+        <div class="table-shell">
+          <table class="appointments-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Doctor Name</th>
+                <th>Specialty</th>
+                <th>Status</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="appt in pastAppointments" :key="'past-'+appt.id">
+                <td style="white-space: nowrap;">{{ appt.date }}</td>
+                <td>Dr. {{ appt.doctor_name }}</td>
+                <td>{{ appt.specialization }}</td>
+                <td>
+                  <span :class="{'badge': true, 'badge-blue': appt.status === 'Completed', 'badge-red': appt.status === 'Cancelled'}">
+                    {{ appt.status }}
+                  </span>
+                </td>
+                <td>
+                  <button v-if="appt.status === 'Completed'" class="btn btn-outline-blue btn-sm" @click="viewPastDetails(appt)">
+                    Details
+                  </button>
+                  <span v-else class="empty-cell" style="font-size: 12px; color: #aaa;">--</span>
+                </td>
+              </tr>
+              <tr v-if="pastAppointments.length === 0">
+                <td colspan="5" class="empty-cell">No past appointments</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <!-- Booking Modal -->
       <div v-if="showBookingModal" class="modal-overlay" @click="closeBookingModal">
         <div class="modal-content" @click.stop>
@@ -129,7 +174,7 @@
 
             <div class="form-group">
               <label>Select Doctor:</label>
-              <select v-model="bookingForm.doctor_id" class="form-control">
+              <select v-model="bookingForm.doctor_id" @change="bookingForm.date=''; bookingForm.time=''" class="form-control">
                 <option value="">-- Select a Doctor --</option>
                 <option v-for="doctor in availableDoctors" :key="doctor.id" :value="doctor.id">
                   Dr. {{ doctor.name }} ({{ doctor.specialization }})
@@ -137,14 +182,25 @@
               </select>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" v-if="bookingForm.doctor_id">
               <label>Date:</label>
-              <input v-model="bookingForm.date" type="date" class="form-control" :min="minDate" :max="maxDate" />
+              <select v-model="bookingForm.date" @change="bookingForm.time=''" class="form-control">
+                <option value="">-- Select a Date --</option>
+                <option v-for="d in availableDatesForSelectedDoctor" :key="d.value" :value="d.value">
+                  {{ d.label }}
+                </option>
+              </select>
+              <small v-if="availableDatesForSelectedDoctor.length === 0" style="color: red;">Doctor has no availability in the next 7 days.</small>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" v-if="bookingForm.date">
               <label>Time:</label>
-              <input v-model="bookingForm.time" type="time" class="form-control" />
+              <select v-model="bookingForm.time" class="form-control">
+                <option value="">-- Select a Time Slot --</option>
+                <option v-for="t in availableTimeSlotsForSelectedDate" :key="t.value" :value="t.value">
+                  {{ t.label }}
+                </option>
+              </select>
             </div>
           </div>
 
@@ -232,18 +288,52 @@
 
             <div class="form-group">
               <label>New Date:</label>
-              <input v-model="rescheduleForm.date" type="date" class="form-control" :min="minDate" :max="maxDate" />
+              <select v-model="rescheduleForm.date" @change="rescheduleForm.time=''" class="form-control">
+                <option value="">-- Select a Date --</option>
+                <option v-for="d in availableDatesForReschedule" :key="d.value" :value="d.value">
+                  {{ d.label }}
+                </option>
+              </select>
+              <small v-if="availableDatesForReschedule.length === 0" style="color: red;">Doctor has no availability in the next 7 days.</small>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" v-if="rescheduleForm.date">
               <label>New Time:</label>
-              <input v-model="rescheduleForm.time" type="time" class="form-control" />
+              <select v-model="rescheduleForm.time" class="form-control">
+                <option value="">-- Select a Time Slot --</option>
+                <option v-for="t in availableTimeSlotsForReschedule" :key="t.value" :value="t.value">
+                  {{ t.label }}
+                </option>
+              </select>
             </div>
           </div>
 
           <div class="modal-footer">
             <button class="btn btn-secondary" @click="closeRescheduleModal">Cancel</button>
             <button class="btn btn-blue" @click="submitReschedule">Reschedule</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Past Details Modal -->
+      <div v-if="showPastDetailsModal" class="modal-overlay" @click="closePastDetailsModal">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h3>Treatment Details</h3>
+            <button class="close-btn" @click="closePastDetailsModal">&times;</button>
+          </div>
+
+          <div class="modal-body" v-if="selectedPastAppointment">
+            <p style="margin-bottom: 8px;"><strong>Doctor:</strong> Dr. {{ selectedPastAppointment.doctor_name }} ({{ selectedPastAppointment.specialization }})</p>
+            <p style="margin-bottom: 8px;"><strong>Date:</strong> {{ selectedPastAppointment.date }} at {{ selectedPastAppointment.time }}</p>
+            <hr style="margin: 15px 0; border: 0; border-top: 1px solid #eee;" />
+            <p style="margin-bottom: 8px; color: #333;"><strong>Diagnosis:</strong><br/> <span style="color: #666;">{{ selectedPastAppointment.diagnosis || 'No diagnosis recorded' }}</span></p>
+            <p style="margin-bottom: 8px; color: #333;"><strong>Prescription:</strong><br/> <span style="color: #666;">{{ selectedPastAppointment.prescription || 'No prescriptions recorded' }}</span></p>
+            <p style="margin-bottom: 8px; color: #333;"><strong>Notes:</strong><br/> <span style="color: #666;">{{ selectedPastAppointment.notes || 'No additional notes' }}</span></p>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" @click="closePastDetailsModal">Close</button>
           </div>
         </div>
       </div>
@@ -329,6 +419,8 @@ export default {
       showEditProfileModal: false,
       showRescheduleModal: false,
       showDoctorsModal: false,
+      showPastDetailsModal: false,
+      selectedPastAppointment: null,
       exportLoading: false,
       exportTaskId: null,
       exportTaskStatus: "",
@@ -375,16 +467,13 @@ export default {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       return this.appointments.filter(appt => {
-        const apptDate = new Date(appt.date);
+        const apptDate = new Date(appt.date + 'T00:00:00');
         return apptDate >= today && appt.status === "Booked";
       });
     },
     pastAppointments() {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
       return this.appointments.filter(appt => {
-        const apptDate = new Date(appt.date);
-        return apptDate < today && appt.status === "Completed";
+        return appt.status === "Completed" || appt.status === "Cancelled";
       });
     },
     patientDisplayName() {
@@ -401,6 +490,161 @@ export default {
       return this.exportResult?.filename
         ? `${API_BASE_URL}/api/patient/export/download/${encodeURIComponent(this.exportResult.filename)}`
         : "";
+    },
+    selectedDoctorDetails() {
+      if (!this.bookingForm.doctor_id) return null;
+      let doc = this.availableDoctors.find(d => d.id === this.bookingForm.doctor_id);
+      if (!doc) doc = this.searchDoctorsResults.find(d => d.id === this.bookingForm.doctor_id);
+      if (!doc) doc = this.specializationDoctors.find(d => d.id === this.bookingForm.doctor_id);
+      return doc || null;
+    },
+    availableDatesForSelectedDoctor() {
+      const doctor = this.selectedDoctorDetails;
+      if (!doctor || !doctor.availability) return [];
+      
+      const dates = [];
+      const today = new Date();
+      // Ensure we don't have timezone offset issues
+      today.setHours(0, 0, 0, 0);
+      
+      // Look ahead 7 days
+      for (let i = 0; i <= 7; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const dayName = dayNames[d.getDay()];
+        
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const dateStr = String(d.getDate()).padStart(2, '0');
+        const value = `${year}-${month}-${dateStr}`;
+        
+        const dayAvailability = doctor.availability[value] || doctor.availability[dayName];
+        
+        if (dayAvailability && dayAvailability.available) {
+          const options = { weekday: 'long', month: 'short', day: 'numeric' };
+          const label = d.toLocaleDateString(undefined, options);
+          
+          dates.push({ value, label });
+        }
+      }
+      return dates;
+    },
+    availableTimeSlotsForSelectedDate() {
+      const doctor = this.selectedDoctorDetails;
+      if (!doctor || !doctor.availability || !this.bookingForm.date) return [];
+      
+      const selectedDateStr = this.bookingForm.date; // e.g. "YYYY-MM-DD"
+      // Prevent timezone shifting by parsing "T00:00:00" explicitly
+      const selectedDateObj = new Date(selectedDateStr + 'T00:00:00');
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayName = dayNames[selectedDateObj.getDay()];
+      
+      const dayAvailability = doctor.availability[selectedDateStr] || doctor.availability[dayName];
+      if (!dayAvailability || !dayAvailability.available) return [];
+      
+      const startTime = dayAvailability.start_time;
+      const endTime = dayAvailability.end_time;
+      
+      if (!startTime || !endTime) return [];
+      
+      const slots = [];
+      const startParts = startTime.split(':');
+      const endParts = endTime.split(':');
+      
+      if (startParts.length < 2 || endParts.length < 2) return [];
+      
+      const bookedSlots = doctor.booked_slots || {};
+      const dayBookedSlots = bookedSlots[selectedDateStr] || [];
+      
+      let currentMin = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+      const endMin = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+      
+      while (currentMin < endMin) {
+        const h = Math.floor(currentMin / 60);
+        const m = currentMin % 60;
+        const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        
+        if (!dayBookedSlots.includes(timeStr)) {
+          slots.push({ value: timeStr, label: timeStr });
+        }
+        currentMin += 30;
+      }
+      return slots;
+    },
+    availableDatesForReschedule() {
+      const appt = this.selectedRescheduleAppointment;
+      if (!appt || !appt.doctor_availability) return [];
+      
+      const availability = appt.doctor_availability;
+      const dates = [];
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      for (let i = 0; i <= 7; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const dateStr = String(d.getDate()).padStart(2, '0');
+        const value = `${year}-${month}-${dateStr}`;
+        
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const dayName = dayNames[d.getDay()];
+        
+        const dayAvailability = availability[value] || availability[dayName];
+        
+        if (dayAvailability && dayAvailability.available) {
+          const options = { weekday: 'long', month: 'short', day: 'numeric' };
+          const label = d.toLocaleDateString(undefined, options);
+          dates.push({ value, label });
+        }
+      }
+      return dates;
+    },
+    availableTimeSlotsForReschedule() {
+      const appt = this.selectedRescheduleAppointment;
+      if (!appt || !appt.doctor_availability || !this.rescheduleForm.date) return [];
+      
+      const availability = appt.doctor_availability;
+      const selectedDateStr = this.rescheduleForm.date;
+      const selectedDateObj = new Date(selectedDateStr + 'T00:00:00');
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayName = dayNames[selectedDateObj.getDay()];
+      
+      const dayAvailability = availability[selectedDateStr] || availability[dayName];
+      if (!dayAvailability || !dayAvailability.available) return [];
+      
+      const startTime = dayAvailability.start_time;
+      const endTime = dayAvailability.end_time;
+      
+      if (!startTime || !endTime) return [];
+      
+      const slots = [];
+      const startParts = startTime.split(':');
+      const endParts = endTime.split(':');
+      
+      if (startParts.length < 2 || endParts.length < 2) return [];
+      
+      const bookedSlots = appt.booked_slots || {};
+      const dayBookedSlots = bookedSlots[selectedDateStr] || [];
+      
+      let currentMin = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+      const endMin = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+      
+      while (currentMin < endMin) {
+        const h = Math.floor(currentMin / 60);
+        const m = currentMin % 60;
+        const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        
+        if (!dayBookedSlots.includes(timeStr)) {
+          slots.push({ value: timeStr, label: timeStr });
+        }
+        currentMin += 30;
+      }
+      return slots;
     }
   },
   mounted() {
@@ -520,6 +764,8 @@ export default {
 
     selectDoctorForBooking(doctor) {
       this.bookingForm.doctor_id = doctor.id;
+      this.bookingForm.date = "";
+      this.bookingForm.time = "";
       this.openBookingModal();
     },
 
@@ -540,6 +786,45 @@ export default {
 
     closeEditProfileModal() {
       this.showEditProfileModal = false;
+    },
+
+    viewPastDetails(appt) {
+      this.selectedPastAppointment = appt;
+      this.showPastDetailsModal = true;
+    },
+
+    closePastDetailsModal() {
+      this.showPastDetailsModal = false;
+      this.selectedPastAppointment = null;
+    },
+
+    async exportHistory() {
+      this.exportLoading = true;
+      const token = localStorage.getItem("token");
+      try {
+        const response = await axios.post(
+          `${API_BASE_URL}/api/patient/export/treatment-history`,
+          {},
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            responseType: 'blob'
+          }
+        );
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        const date = new Date().toISOString().slice(0,10).replace(/-/g,'');
+        link.setAttribute('download', `treatment_history_${date}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error("Export error:", err);
+        alert("Failed to export. Please try again.");
+      } finally {
+        this.exportLoading = false;
+      }
     },
 
     openRescheduleModal(appointment) {
@@ -603,7 +888,10 @@ export default {
         if (response.data.appointment) {
           this.appointments.push({
             id: response.data.appointment.id,
+            doctor_id: response.data.appointment.doctor_id,
             doctor_name: response.data.appointment.doctor_name,
+            doctor_availability: response.data.appointment.doctor_availability || {},
+            booked_slots: response.data.appointment.booked_slots || {},
             specialization: response.data.appointment.specialization,
             date: response.data.appointment.date,
             time: response.data.appointment.time,

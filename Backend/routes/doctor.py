@@ -244,6 +244,10 @@ def set_availability():
         doctor.availability = json.dumps(availability_data)
         db.session.commit()
         
+        # Actively invalidate cache allowing immediate patient UI updates
+        from extensions import cache
+        cache.clear()
+        
         return jsonify({
             'status': 'success',
             'message': 'Availability updated successfully',

@@ -71,12 +71,7 @@ MediZentrum Hospital Management System
                     subject=subject,
                     body=body,
                     webhook_payload={
-                        'type': 'appointment_reminder',
-                        'patient_email': patient_email,
-                        'appointment_id': appointment.id,
-                        'doctor_name': doctor_name,
-                        'appointment_time': reminder_time,
-                        'appointment_date': str(today)
+                        'text': f"REMINDER: Dear {patient_name}, you have an appointment today at {reminder_time} with Dr. {doctor_name}."
                     }
                 )
                 reminder_count += 1
@@ -204,20 +199,21 @@ def generate_monthly_doctor_report(doctor_id=None, month=None, year=None):
             </html>
             """
             
+            # Save HTML file locally since emails are dummy
+            filename = f"monthly_report_{doctor_name.replace(' ', '_')}_{month}_{year}.html"
+            filepath = os.path.join(EXPORTS_DIR, filename)
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(report_html)
+            
             try:
                 subject = f"Monthly Activity Report - {month}/{year}"
                 send_notification(
                     recipient_email=doctor_email,
                     subject=subject,
-                    body=f"Dear Dr. {doctor_name},\n\nYour activity report for {month}/{year} is attached. Please review the summary in your inbox.\n\nBest regards,\nMediZentrum Hospital Management System",
+                    body=f"Dear Dr. {doctor_name},\n\nYour activity report for {month}/{year} has been generated and saved locally to {filepath}.",
                     html=report_html,
                     webhook_payload={
-                        'type': 'monthly_activity_report',
-                        'doctor_email': doctor_email,
-                        'doctor_id': doctor.id,
-                        'month': month,
-                        'year': year,
-                        'appointments': len(appointments)
+                        'text': f"MONTHLY REPORT: Activity report for Dr. {doctor_name} physically saved to {filepath}"
                     }
                 )
                 reports_generated += 1
@@ -266,8 +262,8 @@ def export_patient_treatment_history(patient_id):
         # Generate CSV data
         csv_data = []
         headers = [
-            'Date', 'Doctor Name', 'Specialization', 'Time',
-            'Diagnosis', 'Prescription', 'Doctor Notes', 'Visit Status'
+            'User ID', 'Username', 'Consulting Doctor', 'Appointment Date',
+            'Diagnosis Given', 'Treatment Given', 'Next Visit Suggested', 'Status'
         ]
         csv_data.append(headers)
         
@@ -275,13 +271,13 @@ def export_patient_treatment_history(patient_id):
             treatment = Treatment.query.filter_by(appointment_id=appointment.id).first()
             
             row = [
+                str(patient.user.id),
+                patient.user.username,
+                f"Dr. {appointment.doctor.user.username}",
                 str(appointment.date),
-                appointment.doctor.user.username,
-                appointment.doctor.specialization,
-                str(appointment.time),
-                treatment.diagnosis if treatment else "",
-                treatment.prescription if treatment else "",
-                treatment.notes if treatment else "",
+                treatment.diagnosis if treatment else "N/A",
+                treatment.prescription if treatment else "N/A",
+                str(treatment.next_visit_suggested) if treatment and treatment.next_visit_suggested else "N/A",
                 appointment.status
             ]
             csv_data.append(row)
@@ -383,14 +379,17 @@ def send_notification(recipient_email, subject, body, html=None, webhook_payload
 
 
 def send_via_webhook(payload):
-    """Send a webhook notification if configured."""
+    """Send a webhook notification mapped specifically for Google Chat natively."""
     if not NOTIFICATION_WEBHOOK_URL:
         return False
 
     try:
-        response = requests.post(NOTIFICATION_WEBHOOK_URL, json=payload, timeout=10)
+        # Standardize for Google Chat integration
+        chat_payload = {"text": payload.get('text', str(payload))}
+        
+        response = requests.post(NOTIFICATION_WEBHOOK_URL, json=chat_payload, timeout=10)
         response.raise_for_status()
-        print(f"Webhook notification sent to {NOTIFICATION_WEBHOOK_URL}")
+        print(f"Webhook notification sent to Google Chat.")
         return True
     except Exception as e:
         print(f"Webhook notification failed: {str(e)}")

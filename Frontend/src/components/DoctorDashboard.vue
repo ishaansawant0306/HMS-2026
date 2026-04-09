@@ -166,7 +166,7 @@
 
           <div class="modal-body availability-body">
             <div v-for="(config, day) in availabilityForm" :key="day" class="availability-row">
-              <div class="day-name">{{ day.charAt(0).toUpperCase() + day.slice(1) }}</div>
+              <div class="day-name" style="width: auto; min-width: 140px;">{{ config.label || (day.charAt(0).toUpperCase() + day.slice(1)) }}</div>
               <label class="checkbox-label">
                 <input type="checkbox" v-model="config.available" />
                 Available
@@ -324,6 +324,35 @@ export default {
     },
 
     openAvailabilityModal() {
+      const newForm = {};
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const dateStr = String(d.getDate()).padStart(2, '0');
+        const value = `${year}-${month}-${dateStr}`; // "YYYY-MM-DD"
+        
+        const options = { weekday: 'short', month: 'short', day: 'numeric' };
+        let label = d.toLocaleDateString(undefined, options);
+        if (i === 0) label = "Today, " + label;
+        else if (i === 1) label = "Tmw, " + label;
+        
+        const dayOfWeek = d.getDay();
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+        newForm[value] = {
+          available: !isWeekend,
+          start_time: "09:00",
+          end_time: "17:00",
+          label: label
+        };
+      }
+      this.availabilityForm = newForm;
       this.showAvailabilityModal = true;
     },
 

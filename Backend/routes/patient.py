@@ -57,13 +57,30 @@ def dashboard():
         
         appointments_list = []
         for appointment in upcoming_appointments:
+            b_appts = Appointment.query.filter(
+                Appointment.doctor_id == appointment.doctor.id,
+                Appointment.date >= today,
+                Appointment.status != 'Cancelled',
+                Appointment.id != appointment.id
+            ).all()
+            b_slots = {}
+            for ba in b_appts:
+                d_str = ba.date.isoformat()
+                t_str = ba.time.strftime('%H:%M')
+                if d_str not in b_slots:
+                    b_slots[d_str] = []
+                b_slots[d_str].append(t_str)
+                
             appointment_data = {
                 'id': appointment.id,
                 'doctor_name': appointment.doctor.user.username,
                 'specialization': appointment.doctor.specialization,
                 'date': appointment.date.isoformat(),
                 'time': appointment.time.isoformat(),
-                'status': appointment.status
+                'status': appointment.status,
+                'doctor_id': appointment.doctor.id,
+                'doctor_availability': json.loads(appointment.doctor.availability) if appointment.doctor.availability else {},
+                'booked_slots': b_slots
             }
             appointments_list.append(appointment_data)
         
@@ -180,7 +197,7 @@ def update_profile():
 @patient_bp.route('/doctors/available', methods=['GET'])
 @jwt_required()
 @require_role('patient')
-@cache.cached(timeout=60, key_prefix=make_patient_cache_key)
+@cache.cached(timeout=3600, key_prefix='doctors_available_cache', query_string=True)
 def get_available_doctors():
     
     try:
@@ -200,14 +217,29 @@ def get_available_doctors():
         
         doctors = query.all()
         
+        today = datetime.now().date()
         doctors_list = []
         for doctor in doctors:
+            b_appts = Appointment.query.filter(
+                Appointment.doctor_id == doctor.id,
+                Appointment.date >= today,
+                Appointment.status != 'Cancelled'
+            ).all()
+            b_slots = {}
+            for ba in b_appts:
+                d_str = ba.date.isoformat()
+                t_str = ba.time.strftime('%H:%M')
+                if d_str not in b_slots:
+                    b_slots[d_str] = []
+                b_slots[d_str].append(t_str)
+
             doctor_data = {
                 'id': doctor.id,
                 'name': doctor.user.username,
                 'email': doctor.user.email,
                 'specialization': doctor.specialization,
-                'availability': json.loads(doctor.availability) if doctor.availability else {}
+                'availability': json.loads(doctor.availability) if doctor.availability else {},
+                'booked_slots': b_slots
             }
             doctors_list.append(doctor_data)
         
@@ -282,7 +314,10 @@ def book_appointment():
                 'specialization': doctor.specialization,
                 'date': appointment.date.isoformat(),
                 'time': appointment.time.isoformat(),
-                'status': appointment.status
+                'status': appointment.status,
+                'doctor_id': doctor.id,
+                'doctor_availability': json.loads(doctor.availability) if doctor.availability else {},
+                'booked_slots': {}  # Optional for immediately returned booking as we re-fetch appointments
             }
         }), 201
     except ValueError as e:
@@ -344,7 +379,10 @@ def reschedule_appointment(appointment_id):
                 'id': appointment.id,
                 'date': appointment.date.isoformat(),
                 'time': appointment.time.isoformat(),
-                'status': appointment.status
+                'status': appointment.status,
+                'doctor_id': appointment.doctor.id,
+                'doctor_availability': json.loads(appointment.doctor.availability) if appointment.doctor.availability else {},
+                'booked_slots': {}
             }
         }), 200
     except ValueError as e:
@@ -404,8 +442,23 @@ def get_appointments():
             Appointment.patient_id == patient.id
         ).order_by(Appointment.date.desc()).all()
         
+        today = datetime.now().date()
         appointments_list = []
         for appointment in appointments:
+            b_appts = Appointment.query.filter(
+                Appointment.doctor_id == appointment.doctor.id,
+                Appointment.date >= today,
+                Appointment.status != 'Cancelled',
+                Appointment.id != appointment.id
+            ).all()
+            b_slots = {}
+            for ba in b_appts:
+                d_str = ba.date.isoformat()
+                t_str = ba.time.strftime('%H:%M')
+                if d_str not in b_slots:
+                    b_slots[d_str] = []
+                b_slots[d_str].append(t_str)
+
             treatment = Treatment.query.filter_by(appointment_id=appointment.id).first()
             appointment_data = {
                 'id': appointment.id,
@@ -414,6 +467,9 @@ def get_appointments():
                 'date': appointment.date.isoformat(),
                 'time': appointment.time.isoformat(),
                 'status': appointment.status,
+                'doctor_id': appointment.doctor.id,
+                'doctor_availability': json.loads(appointment.doctor.availability) if appointment.doctor.availability else {},
+                'booked_slots': b_slots,
                 'diagnosis': treatment.diagnosis if treatment else None,
                 'prescription': treatment.prescription if treatment else None,
                 'notes': treatment.notes if treatment else None
@@ -484,33 +540,56 @@ def get_medical_history():
 @require_role('patient')
 def export_treatment_history():
     """
-    Trigger async CSV export of patient's treatment history
-    Uses Celery for background job processing
+    Synchronous CSV export - generates and streams the file directly.
+    No Celery or Redis required.
     """
+    import csv
+    import io
+    from flask import Response
+
     try:
-        from tasks import export_patient_treatment_history
-        
         current_user_id = get_jwt_identity()
         patient = Patient.query.filter_by(user_id=current_user_id).first()
-        
+
         if not patient:
             return jsonify({'error': 'Patient profile not found'}), 404
-        
-        # Trigger background task
-        task = export_patient_treatment_history.delay(patient.id)
-        
-        return jsonify({
-            'status': 'success',
-            'message': 'Export job started. You will receive an email with the file.',
-            'task_id': task.id,
-            'task_status': task.status
-        }), 202
-    
-    except ImportError:
-        # Celery not configured, return error
-        return jsonify({
-            'error': 'Export service not available. Please contact administrator.'
-        }), 503
+
+        appointments = Appointment.query.filter(
+            Appointment.patient_id == patient.id,
+            Appointment.status == 'Completed'
+        ).order_by(Appointment.date.desc()).all()
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            'User ID', 'Username', 'Consulting Doctor', 'Appointment Date',
+            'Diagnosis Given', 'Treatment Given', 'Next Visit Suggested', 'Status'
+        ])
+
+        for appointment in appointments:
+            treatment = Treatment.query.filter_by(appointment_id=appointment.id).first()
+            writer.writerow([
+                str(patient.user.id),
+                patient.user.username,
+                f"Dr. {appointment.doctor.user.username}",
+                str(appointment.date),
+                treatment.diagnosis if treatment else "N/A",
+                treatment.prescription if treatment else "N/A",
+                str(treatment.next_visit_suggested) if treatment and treatment.next_visit_suggested else "N/A",
+                appointment.status
+            ])
+
+        output.seek(0)
+        filename = f"treatment_history_{patient.user.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename={filename}'
+            }
+        )
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
