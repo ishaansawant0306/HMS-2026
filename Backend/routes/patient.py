@@ -29,13 +29,12 @@ def clear_patient_cache(user_id):
     cache.delete(f"patient:{user_id}:/api/patient/medical-history:")
 
 
+# patient dashboard
 @patient_bp.route('/dashboard', methods=['GET'])
 @jwt_required()
 @require_role('patient')
 @cache.cached(timeout=30, key_prefix=make_patient_cache_key)
 def dashboard():
-     
-
     try:
         current_user_id = get_jwt_identity()
         patient = Patient.query.filter_by(user_id=current_user_id).first()
@@ -43,7 +42,7 @@ def dashboard():
         if not patient:
             return jsonify({'error': 'Patient profile not found'}), 404
         
-        # Get upcoming appointments
+       
         today = datetime.now().date()
         upcoming_appointments = Appointment.query.filter(
             Appointment.patient_id == patient.id,
@@ -51,36 +50,18 @@ def dashboard():
             Appointment.status.in_(['Booked', 'Completed'])
         ).all()
         
-        # Get all specializations
         specializations = db.session.query(Doctor.specialization).distinct().all()
         specializations_list = [s[0] for s in specializations if s[0]]
         
         appointments_list = []
         for appointment in upcoming_appointments:
-            b_appts = Appointment.query.filter(
-                Appointment.doctor_id == appointment.doctor.id,
-                Appointment.date >= today,
-                Appointment.status != 'Cancelled',
-                Appointment.id != appointment.id
-            ).all()
-            b_slots = {}
-            for ba in b_appts:
-                d_str = ba.date.isoformat()
-                t_str = ba.time.strftime('%H:%M')
-                if d_str not in b_slots:
-                    b_slots[d_str] = []
-                b_slots[d_str].append(t_str)
-                
             appointment_data = {
                 'id': appointment.id,
                 'doctor_name': appointment.doctor.user.username,
                 'specialization': appointment.doctor.specialization,
                 'date': appointment.date.isoformat(),
                 'time': appointment.time.isoformat(),
-                'status': appointment.status,
-                'doctor_id': appointment.doctor.id,
-                'doctor_availability': json.loads(appointment.doctor.availability) if appointment.doctor.availability else {},
-                'booked_slots': b_slots
+                'status': appointment.status
             }
             appointments_list.append(appointment_data)
         
@@ -100,14 +81,11 @@ def dashboard():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
+# patient's profile 
 @patient_bp.route('/profile', methods=['GET'])
 @jwt_required()
 @require_role('patient')
 def get_profile():
-    """
-    Get patient's profile information
-    """
     try:
         current_user_id = get_jwt_identity()
         patient = Patient.query.filter_by(user_id=current_user_id).first()
@@ -133,12 +111,11 @@ def get_profile():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-#Update patient's profile information
+#Update patient's profile info
 @patient_bp.route('/profile', methods=['PUT'])
 @jwt_required()
 @require_role('patient')
 def update_profile():
-    
     try:
         current_user_id = get_jwt_identity()
         patient = Patient.query.filter_by(user_id=current_user_id).first()
@@ -146,70 +123,43 @@ def update_profile():
         if not patient:
             return jsonify({'error': 'Patient profile not found'}), 404
         
-        data = request.get_json() or {}
+        data = request.get_json()
         
-        # Update allowed fields (enforce non-null columns)
+        # Update allowed fields
         if 'contact_number' in data:
-            contact_number = str(data.get('contact_number', '')).strip()
-            if not contact_number:
-                return jsonify({'error': 'Contact number is required'}), 400
-            patient.contact_number = contact_number
-
+            patient.contact_number = data['contact_number'] or None
         if 'address' in data:
-            address = data.get('address')
-            patient.address = str(address).strip() if address else None
-
-        if 'age' in data:
-            age_value = data.get('age')
-            if age_value in (None, ''):
-                return jsonify({'error': 'Age is required'}), 400
+            patient.address = data['address'] or None
+        if 'age' in data and data['age'] != '':
             try:
-                patient.age = int(age_value)
+                patient.age = int(data['age'])
             except (ValueError, TypeError):
                 return jsonify({'error': 'Invalid age value'}), 400
-
         if 'gender' in data:
-            gender = str(data.get('gender', '')).strip()
-            if not gender:
-                return jsonify({'error': 'Gender is required'}), 400
-            patient.gender = gender
-
-        if 'height' in data:
-            height_value = data.get('height')
-            if height_value in (None, ''):
-                return jsonify({'error': 'Height is required'}), 400
+            patient.gender = data['gender'] or None
+        if 'height' in data and data['height'] != '':
             try:
-                patient.height = float(height_value)
+                patient.height = int(data['height'])
             except (ValueError, TypeError):
                 return jsonify({'error': 'Invalid height value'}), 400
-
-        if 'weight' in data:
-            weight_value = data.get('weight')
-            if weight_value in (None, ''):
-                return jsonify({'error': 'Weight is required'}), 400
+        if 'weight' in data and data['weight'] != '':
             try:
-                patient.weight = float(weight_value)
+                patient.weight = int(data['weight'])
             except (ValueError, TypeError):
                 return jsonify({'error': 'Invalid weight value'}), 400
         
-        # Update user fields if provided
-        if 'username' in data:
-            username = str(data.get('username', '')).strip()
-            if not username:
-                return jsonify({'error': 'Username is required'}), 400
-            patient.user.username = username
-        if 'email' in data:
-            email = str(data.get('email', '')).strip()
-            if not email:
-                return jsonify({'error': 'Email is required'}), 400
+        
+        if 'username' in data and data['username']:
+            patient.user.username = data['username']
+        if 'email' in data and data['email']:
             # Check if email already exists
-            if User.query.filter(User.email == email, User.id != current_user_id).first():
+            if User.query.filter(User.email == data['email'], User.id != current_user_id).first():
                 return jsonify({'error': 'Email already in use'}), 400
-            patient.user.email = email
+            patient.user.email = data['email']
         
         db.session.commit()
         
-        # Clear patient cache to ensure updated profile data is shown immediately
+        
         clear_patient_cache(current_user_id)
         
         return jsonify({
@@ -220,11 +170,11 @@ def update_profile():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-
+# doctor's  availability 
 @patient_bp.route('/doctors/available', methods=['GET'])
 @jwt_required()
 @require_role('patient')
-@cache.cached(timeout=3600, key_prefix='doctors_available_cache', query_string=True)
+@cache.cached(timeout=60, key_prefix=make_patient_cache_key)
 def get_available_doctors():
     
     try:
@@ -244,29 +194,14 @@ def get_available_doctors():
         
         doctors = query.all()
         
-        today = datetime.now().date()
         doctors_list = []
         for doctor in doctors:
-            b_appts = Appointment.query.filter(
-                Appointment.doctor_id == doctor.id,
-                Appointment.date >= today,
-                Appointment.status != 'Cancelled'
-            ).all()
-            b_slots = {}
-            for ba in b_appts:
-                d_str = ba.date.isoformat()
-                t_str = ba.time.strftime('%H:%M')
-                if d_str not in b_slots:
-                    b_slots[d_str] = []
-                b_slots[d_str].append(t_str)
-
             doctor_data = {
                 'id': doctor.id,
                 'name': doctor.user.username,
                 'email': doctor.user.email,
                 'specialization': doctor.specialization,
-                'availability': json.loads(doctor.availability) if doctor.availability else {},
-                'booked_slots': b_slots
+                'availability': json.loads(doctor.availability) if doctor.availability else {}
             }
             doctors_list.append(doctor_data)
         
@@ -278,7 +213,7 @@ def get_available_doctors():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
+# to book an appointment 
 @patient_bp.route('/appointments/book', methods=['POST'])
 @jwt_required()
 @require_role('patient')
@@ -293,12 +228,12 @@ def book_appointment():
         
         data = request.get_json()
         
-        # Validate required fields
+        
         required_fields = ['doctor_id', 'date', 'time']
         if not all(field in data for field in required_fields):
             return jsonify({'error': 'Missing required fields'}), 400
         
-        # Check if doctor exists
+        
         doctor = Doctor.query.get(data['doctor_id'])
         if not doctor:
             return jsonify({'error': 'Doctor not found'}), 404
@@ -306,58 +241,30 @@ def book_appointment():
         if doctor.is_blacklisted:
             return jsonify({'error': 'Doctor is not available'}), 400
         
-        appointment_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
-        appointment_time = datetime.strptime(data['time'], '%H:%M').time()
-
-        # Block past date/time booking (including earlier slots on today)
-        if datetime.combine(appointment_date, appointment_time) < datetime.now():
-            return jsonify({'error': 'Cannot book appointments in the past'}), 400
-
-        # Check for conflicting appointments
+        
         existing_appointment = Appointment.query.filter(
             Appointment.doctor_id == data['doctor_id'],
-            Appointment.date == appointment_date,
-            Appointment.time == appointment_time,
+            Appointment.date == data['date'],
+            Appointment.time == data['time'],
             Appointment.status != 'Cancelled'
         ).first()
         
         if existing_appointment:
             return jsonify({'error': 'This time slot is already booked'}), 400
         
-        # Create appointment
+        
         appointment = Appointment(
             doctor_id=data['doctor_id'],
             patient_id=patient.id,
-            date=appointment_date,
-            time=appointment_time,
+            date=datetime.strptime(data['date'], '%Y-%m-%d').date(),
+            time=datetime.strptime(data['time'], '%H:%M').time(),
             status='Booked'
         )
         
         db.session.add(appointment)
         db.session.commit()
         
-        # Send instant Google Chat booking confirmation
-        webhook_url = os.environ.get('NOTIFICATION_WEBHOOK_URL')
-        if webhook_url:
-            try:
-                import requests as _req
-                patient_name = patient.user.username
-                doctor_name = doctor.user.username
-                appt_date = appointment.date.strftime('%A, %B %d, %Y')
-                appt_time = appointment.time.strftime('%I:%M %p')
-                msg = (
-                    f"🏥 *Appointment Booked - MediZentrum*\n"
-                    f"Patient: *{patient_name}*\n"
-                    f"Doctor: *Dr. {doctor_name}* ({doctor.specialization})\n"
-                    f"Date: *{appt_date}*\n"
-                    f"Time: *{appt_time}*\n"
-                    f"Please arrive 10 minutes early."
-                )
-                _req.post(webhook_url, json={"text": msg}, timeout=5)
-            except Exception:
-                pass  # Never block booking if webhook fails
         
-        # Clear patient cache to ensure updated appointments are shown immediately
         clear_patient_cache(current_user_id)
         
         return jsonify({
@@ -369,10 +276,7 @@ def book_appointment():
                 'specialization': doctor.specialization,
                 'date': appointment.date.isoformat(),
                 'time': appointment.time.isoformat(),
-                'status': appointment.status,
-                'doctor_id': doctor.id,
-                'doctor_availability': json.loads(doctor.availability) if doctor.availability else {},
-                'booked_slots': {}  # Optional for immediately returned booking as we re-fetch appointments
+                'status': appointment.status
             }
         }), 201
     except ValueError as e:
@@ -381,15 +285,11 @@ def book_appointment():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-
+# reschedule an appointment 
 @patient_bp.route('/appointments/<int:appointment_id>/reschedule', methods=['POST'])
 @jwt_required()
 @require_role('patient')
 def reschedule_appointment(appointment_id):
-    """
-    Reschedule an appointment to a different date/time
-    Required fields: date, time
-    """
     try:
         current_user_id = get_jwt_identity()
         patient = Patient.query.filter_by(user_id=current_user_id).first()
@@ -403,22 +303,15 @@ def reschedule_appointment(appointment_id):
         
         data = request.get_json()
         
-        # Validate required fields
+        
         if 'date' not in data or 'time' not in data:
             return jsonify({'error': 'Date and time are required'}), 400
         
-        new_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
-        new_time = datetime.strptime(data['time'], '%H:%M').time()
-
-        # Block past date/time rescheduling (including earlier slots on today)
-        if datetime.combine(new_date, new_time) < datetime.now():
-            return jsonify({'error': 'Cannot reschedule to a past time'}), 400
-
-        # Check for conflicting appointments
+        
         existing_appointment = Appointment.query.filter(
             Appointment.doctor_id == appointment.doctor_id,
-            Appointment.date == new_date,
-            Appointment.time == new_time,
+            Appointment.date == datetime.strptime(data['date'], '%Y-%m-%d').date(),
+            Appointment.time == datetime.strptime(data['time'], '%H:%M').time(),
             Appointment.status != 'Cancelled',
             Appointment.id != appointment_id
         ).first()
@@ -426,12 +319,12 @@ def reschedule_appointment(appointment_id):
         if existing_appointment:
             return jsonify({'error': 'This time slot is already booked'}), 400
         
-        appointment.date = new_date
-        appointment.time = new_time
+        appointment.date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+        appointment.time = datetime.strptime(data['time'], '%H:%M').time()
         
         db.session.commit()
         
-        # Clear patient cache to ensure updated appointments are shown immediately
+        
         clear_patient_cache(current_user_id)
         
         return jsonify({
@@ -441,10 +334,7 @@ def reschedule_appointment(appointment_id):
                 'id': appointment.id,
                 'date': appointment.date.isoformat(),
                 'time': appointment.time.isoformat(),
-                'status': appointment.status,
-                'doctor_id': appointment.doctor.id,
-                'doctor_availability': json.loads(appointment.doctor.availability) if appointment.doctor.availability else {},
-                'booked_slots': {}
+                'status': appointment.status
             }
         }), 200
     except ValueError as e:
@@ -453,14 +343,11 @@ def reschedule_appointment(appointment_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-
+# cancel an appointment 
 @patient_bp.route('/appointments/<int:appointment_id>/cancel', methods=['POST'])
 @jwt_required()
 @require_role('patient')
 def cancel_appointment(appointment_id):
-    """
-    Cancel an appointment
-    """
     try:
         current_user_id = get_jwt_identity()
         patient = Patient.query.filter_by(user_id=current_user_id).first()
@@ -475,7 +362,7 @@ def cancel_appointment(appointment_id):
         appointment.status = 'Cancelled'
         db.session.commit()
         
-        # Clear patient cache to ensure updated appointments are shown immediately
+        
         clear_patient_cache(current_user_id)
         
         return jsonify({
@@ -486,7 +373,7 @@ def cancel_appointment(appointment_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-
+# appointment booking 
 @patient_bp.route('/appointments', methods=['GET'])
 @jwt_required()
 @require_role('patient')
@@ -503,35 +390,38 @@ def get_appointments():
         appointments = Appointment.query.filter(
             Appointment.patient_id == patient.id
         ).order_by(Appointment.date.desc()).all()
+
+        # Build per-doctor booked slots once so reschedule modal can filter busy times.
+        doctor_ids = list({appointment.doctor_id for appointment in appointments})
+        booked_slots_by_doctor = {}
+        if doctor_ids:
+            doctor_appointments = Appointment.query.filter(
+                Appointment.doctor_id.in_(doctor_ids),
+                Appointment.status != 'Cancelled'
+            ).all()
+            for doc_appointment in doctor_appointments:
+                doc_slots = booked_slots_by_doctor.setdefault(doc_appointment.doctor_id, {})
+                date_key = doc_appointment.date.isoformat()
+                doc_slots.setdefault(date_key, []).append(doc_appointment.time.strftime('%H:%M'))
         
-        today = datetime.now().date()
         appointments_list = []
         for appointment in appointments:
-            b_appts = Appointment.query.filter(
-                Appointment.doctor_id == appointment.doctor.id,
-                Appointment.date >= today,
-                Appointment.status != 'Cancelled',
-                Appointment.id != appointment.id
-            ).all()
-            b_slots = {}
-            for ba in b_appts:
-                d_str = ba.date.isoformat()
-                t_str = ba.time.strftime('%H:%M')
-                if d_str not in b_slots:
-                    b_slots[d_str] = []
-                b_slots[d_str].append(t_str)
-
             treatment = Treatment.query.filter_by(appointment_id=appointment.id).first()
+            doctor_availability = {}
+            if appointment.doctor.availability:
+                try:
+                    doctor_availability = json.loads(appointment.doctor.availability)
+                except (TypeError, json.JSONDecodeError):
+                    doctor_availability = {}
             appointment_data = {
                 'id': appointment.id,
                 'doctor_name': appointment.doctor.user.username,
                 'specialization': appointment.doctor.specialization,
+                'doctor_availability': doctor_availability,
+                'booked_slots': booked_slots_by_doctor.get(appointment.doctor_id, {}),
                 'date': appointment.date.isoformat(),
                 'time': appointment.time.isoformat(),
                 'status': appointment.status,
-                'doctor_id': appointment.doctor.id,
-                'doctor_availability': json.loads(appointment.doctor.availability) if appointment.doctor.availability else {},
-                'booked_slots': b_slots,
                 'diagnosis': treatment.diagnosis if treatment else None,
                 'prescription': treatment.prescription if treatment else None,
                 'notes': treatment.notes if treatment else None
@@ -546,13 +436,12 @@ def get_appointments():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-#complete medical history (completed appointments with diagnoses and prescriptions)
+# complete medical history 
 @patient_bp.route('/medical-history', methods=['GET'])
 @jwt_required()
 @require_role('patient')
 @cache.cached(timeout=60, key_prefix=make_patient_cache_key)
 def get_medical_history():
-   
     try:
         current_user_id = get_jwt_identity()
         patient = Patient.query.filter_by(user_id=current_user_id).first()
@@ -560,7 +449,7 @@ def get_medical_history():
         if not patient:
             return jsonify({'error': 'Patient profile not found'}), 404
         
-        # Get all completed appointments
+        
         completed_appointments = Appointment.query.filter(
             Appointment.patient_id == patient.id,
             Appointment.status == 'Completed'
@@ -596,85 +485,42 @@ def get_medical_history():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
+# export treatment 
 @patient_bp.route('/export/treatment-history', methods=['POST'])
 @jwt_required()
 @require_role('patient')
 def export_treatment_history():
-    """
-    Synchronous CSV export - generates and streams the file directly.
-    Also sends a Google Chat webhook alert once the export is complete.
-    """
-    import csv
-    import io
-    import requests as http_requests
-    from flask import Response
-
     try:
+        from tasks import export_patient_treatment_history
+        
         current_user_id = get_jwt_identity()
         patient = Patient.query.filter_by(user_id=current_user_id).first()
-
+        
         if not patient:
             return jsonify({'error': 'Patient profile not found'}), 404
-
-        appointments = Appointment.query.filter(
-            Appointment.patient_id == patient.id,
-            Appointment.status == 'Completed'
-        ).order_by(Appointment.date.desc()).all()
-
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow([
-            'User ID', 'Username', 'Consulting Doctor', 'Appointment Date',
-            'Diagnosis Given', 'Treatment Given', 'Next Visit Suggested', 'Status'
-        ])
-
-        for appointment in appointments:
-            treatment = Treatment.query.filter_by(appointment_id=appointment.id).first()
-            writer.writerow([
-                str(patient.user.id),
-                patient.user.username,
-                f"Dr. {appointment.doctor.user.username}",
-                str(appointment.date),
-                treatment.diagnosis if treatment else "N/A",
-                treatment.prescription if treatment else "N/A",
-                str(treatment.next_visit_suggested) if treatment and treatment.next_visit_suggested else "N/A",
-                appointment.status
-            ])
-
-        output.seek(0)
-        filename = f"treatment_history_{patient.user.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-
-        # Send Google Chat webhook alert once export is done
-        webhook_url = os.environ.get('NOTIFICATION_WEBHOOK_URL')
-        if webhook_url:
-            try:
-                alert_text = (
-                    f"✅ *CSV Export Complete* for patient *{patient.user.username}*.\n"
-                    f"File: `{filename}` | Records: `{len(appointments)}`\n"
-                    f"The file has been downloaded to their browser."
-                )
-                http_requests.post(webhook_url, json={"text": alert_text}, timeout=5)
-            except Exception:
-                pass  # Don't block the download if webhook fails
-
-        return Response(
-            output.getvalue(),
-            mimetype='text/csv',
-            headers={
-                'Content-Disposition': f'attachment; filename={filename}'
-            }
-        )
-
+        
+        
+        task = export_patient_treatment_history.delay(patient.id)
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Export job started. You will receive an email with the file.',
+            'task_id': task.id,
+            'task_status': task.status
+        }), 202
+    
+    except ImportError:
+        return jsonify({
+            'error': 'Export service not available. Please contact administrator.'
+        }), 503
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
+# expor downlaod 
 @patient_bp.route('/export/download/<string:filename>', methods=['GET'])
 @jwt_required()
 @require_role('patient')
 def download_export(filename):
-    """Serve a generated export file to the requesting patient."""
     try:
         current_user_id = get_jwt_identity()
         patient = Patient.query.filter_by(user_id=current_user_id).first()
@@ -699,7 +545,6 @@ def download_export(filename):
 @jwt_required()
 @require_role('patient')
 def export_status(task_id):
-    """Return the current status of a patient export task."""
     try:
         from flask import current_app
         celery_app = getattr(current_app, 'celery', None)
