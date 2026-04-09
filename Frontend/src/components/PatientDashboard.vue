@@ -208,7 +208,7 @@
         </div>
       </div>
 
-      <!-- Edit Profile Modal -->
+      <!-- edit Profile Modal -->
       <div v-if="showEditProfileModal" class="modal-overlay" @click="closeEditProfileModal">
         <div class="modal-content" @click.stop>
           <div class="modal-header">
@@ -270,7 +270,7 @@
         </div>
       </div>
 
-      <!-- Reschedule Modal -->
+      <!-- reschedule modal -->
       <div v-if="showRescheduleModal" class="modal-overlay" @click="closeRescheduleModal">
         <div class="modal-content" @click.stop>
           <div class="modal-header">
@@ -312,7 +312,7 @@
         </div>
       </div>
 
-      <!-- Past Details Modal -->
+      <!-- past details modal -->
       <div v-if="showPastDetailsModal" class="modal-overlay" @click="closePastDetailsModal">
         <div class="modal-content" @click.stop>
           <div class="modal-header">
@@ -335,7 +335,7 @@
         </div>
       </div>
 
-      <!-- History Modal -->
+      <!-- history modal -->
       <div v-if="showHistoryModal" class="modal-overlay" @click="showHistoryModal = false">
         <div class="modal-content" @click.stop>
           <div class="modal-header">
@@ -361,7 +361,7 @@
         </div>
       </div>
 
-      <!-- View Doctors Modal -->
+      <!-- view doctors modal -->
       <div v-if="showDoctorsModal" class="modal-overlay" @click="closeDoctorsModal">
         <div class="modal-content" @click.stop>
           <div class="modal-header">
@@ -501,10 +501,8 @@ export default {
       
       const dates = [];
       const today = new Date();
-      // Ensure we don't have timezone offset issues
       today.setHours(0, 0, 0, 0);
       
-      // Look ahead 7 days
       for (let i = 0; i <= 7; i++) {
         const d = new Date(today);
         d.setDate(today.getDate() + i);
@@ -532,8 +530,7 @@ export default {
       const doctor = this.selectedDoctorDetails;
       if (!doctor || !doctor.availability || !this.bookingForm.date) return [];
       
-      const selectedDateStr = this.bookingForm.date; // e.g. "YYYY-MM-DD"
-      // Prevent timezone shifting by parsing "T00:00:00" explicitly
+      const selectedDateStr = this.bookingForm.date; 
       const selectedDateObj = new Date(selectedDateStr + 'T00:00:00');
       const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
       const dayName = dayNames[selectedDateObj.getDay()];
@@ -666,7 +663,7 @@ export default {
     isPastDateTime(dateStr, timeStr) {
       if (!dateStr || !timeStr) return false;
 
-      const normalizedTime = timeStr.slice(0, 5); // supports "HH:MM" and "HH:MM:SS"
+      const normalizedTime = timeStr.slice(0, 5); 
       const appointmentDateTime = new Date(`${dateStr}T${normalizedTime}:00`);
       const now = new Date();
       return appointmentDateTime < now;
@@ -680,7 +677,6 @@ export default {
         });
         
         this.patient = response.data.patient;
-        // Only show specializations that have non-blacklisted doctors
         this.departments = response.data.specializations || [];
         
         this.error = null;
@@ -935,7 +931,6 @@ export default {
           { headers: { Authorization: `Bearer ${token}` } }
         );
         
-        // Optimistically add the appointment to local state for immediate UI update
         if (response.data.appointment) {
           this.appointments.push({
             id: response.data.appointment.id,
@@ -953,7 +948,7 @@ export default {
         alert("Appointment booked successfully!");
         this.closeBookingModal();
         
-        // Still fetch appointments to ensure consistency (cache should be cleared on backend)
+       
         this.fetchAppointments();
       } catch (err) {
         alert(err.response?.data?.error || "Failed to book appointment");
@@ -982,7 +977,6 @@ export default {
           { headers: { Authorization: `Bearer ${token}` } }
         );
         
-        // Optimistically update the appointment in local state
         const appointmentIndex = this.appointments.findIndex(appt => appt.id === this.selectedRescheduleAppointment.id);
         if (appointmentIndex !== -1) {
           this.appointments[appointmentIndex].date = this.rescheduleForm.date;
@@ -992,7 +986,6 @@ export default {
         alert("Appointment rescheduled successfully!");
         this.closeRescheduleModal();
         
-        // Still fetch appointments to ensure consistency
         this.fetchAppointments();
       } catch (err) {
         alert(err.response?.data?.error || "Failed to reschedule appointment");
@@ -1012,12 +1005,12 @@ export default {
           { headers: { Authorization: `Bearer ${token}` } }
         );
         
-        // Optimistically remove the appointment from local state
+     
         this.appointments = this.appointments.filter(appt => appt.id !== id);
         
         alert("Appointment cancelled successfully!");
         
-        // Still fetch appointments to ensure consistency
+       
         this.fetchAppointments();
       } catch (err) {
         alert(err.response?.data?.error || "Failed to cancel appointment");
@@ -1381,7 +1374,7 @@ export default {
   border: 1px solid #f5c6cb;
 }
 
-/* Modal Styles */
+/* modal styles */
 .modal-overlay {
   position: fixed;
   top: 0;

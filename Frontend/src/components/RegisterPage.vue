@@ -1,7 +1,7 @@
 <template>
   <div class="register-page">
 
-    <!-- NAV -->
+    <!-- nav -->
     <nav class="top-nav">
       <div class="nav-inner">
         <span class="logo">MediZentrum</span>
@@ -15,11 +15,11 @@
       </div>
     </nav>
 
-    <!-- MAIN -->
+    <!-- main -->
     <main class="register-main">
       <div class="register-card">
 
-        <!-- LEFT PANEL -->
+        <!-- left side -->
         <div class="panel-left">
           <h2>Patient Registration</h2>
           <ul class="feature-list">
@@ -66,7 +66,7 @@
           </ul>
         </div>
 
-        <!-- RIGHT PANEL -->
+        <!-- right side -->
         <div class="panel-right">
           <h1>Sign Up</h1>
 
@@ -75,7 +75,7 @@
 
           <form @submit.prevent="handleRegister">
 
-            <!-- First Name + Last Name -->
+          
             <div class="form-row">
               <div class="form-group">
                 <label for="firstName">First Name</label>
@@ -99,7 +99,7 @@
               </div>
             </div>
 
-            <!-- Age -->
+            
             <div class="form-group">
               <label for="age">Age</label>
               <input
@@ -113,7 +113,7 @@
               />
             </div>
 
-            <!-- Location -->
+            
             <div class="form-group">
               <label for="location">Where are you from?</label>
               <input
@@ -125,7 +125,7 @@
               />
             </div>
 
-            <!-- Email -->
+           
             <div class="form-group">
               <label for="email">Email or User Id</label>
               <input
@@ -138,7 +138,7 @@
               <span class="field-hint">Note - Email will be used as username</span>
             </div>
 
-            <!-- Password -->
+           
             <div class="form-group">
               <label for="password">Password</label>
               <div class="input-wrap">
@@ -229,7 +229,7 @@ export default {
 
 
 <style scoped>
-/* ── PAGE ── */
+
 .register-page {
   min-height: 100vh;
   display: flex;
@@ -238,7 +238,7 @@ export default {
   font-family: 'Inter', 'Helvetica Neue', sans-serif;
 }
 
-/* ── NAV ── */
+
 .top-nav {
   background: #ffffff;
   border-bottom: 1px solid rgba(0, 0, 0, 0.07);
@@ -304,7 +304,7 @@ export default {
   color: #1a1a2e !important;
 }
 
-/* ── MAIN ── */
+
 .register-main {
   flex: 1;
   display: flex;
@@ -313,7 +313,7 @@ export default {
   padding: 2rem 1rem;
 }
 
-/* ── CARD ── */
+
 .register-card {
   display: flex;
   width: 100%;
@@ -324,7 +324,7 @@ export default {
   background: #ffffff;
 }
 
-/* ── LEFT PANEL ── */
+
 .panel-left {
   background: #1a6fd4;
   padding: 2.5rem 2rem;
@@ -376,7 +376,7 @@ export default {
   height: 11px;
 }
 
-/* ── RIGHT PANEL ── */
+
 .panel-right {
   flex: 1;
   padding: 2.2rem 2.2rem;
@@ -394,7 +394,7 @@ export default {
   letter-spacing: -0.3px;
 }
 
-/* ── ALERTS ── */
+
 .error-alert {
   background: #fee2e2;
   color: #b91c1c;
@@ -415,7 +415,7 @@ export default {
   margin-bottom: 0.9rem;
 }
 
-/* ── FORM ── */
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -457,7 +457,7 @@ export default {
   margin-top: 0.3rem;
 }
 
-/* ── INPUT WRAP ── */
+
 .input-wrap {
   position: relative;
   display: flex;
@@ -489,7 +489,7 @@ export default {
   color: #0f3d7a;
 }
 
-/* ── BUTTON ── */
+
 .btn-register-wrap {
   display: flex;
   justify-content: center;
@@ -522,7 +522,7 @@ export default {
   cursor: not-allowed;
 }
 
-/* ── LOGIN ROW ── */
+
 .login-row {
   text-align: center;
   margin-top: 0.8rem;

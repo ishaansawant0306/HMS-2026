@@ -1,7 +1,7 @@
 <template>
   <div class="login-page">
 
-    <!-- NAV -->
+    <!-- nav -->
     <nav class="top-nav">
       <div class="nav-inner">
         <span class="logo">MediZentrum</span>
@@ -15,11 +15,11 @@
       </div>
     </nav>
 
-    <!-- MAIN -->
+    <!-- main -->
     <main class="login-main">
       <div class="login-card">
 
-        <!-- LEFT PANEL -->
+        <!-- left side -->
         <div class="panel-left">
           <h2>Patient Login</h2>
           <ul class="feature-list">
@@ -66,7 +66,7 @@
           </ul>
         </div>
 
-        <!-- RIGHT PANEL -->
+        <!-- right side -->
         <div class="panel-right">
           <h1>Sign In</h1>
 
@@ -172,7 +172,6 @@ export default {
 
 
 <style scoped>
-/* ── PAGE ── */
 .login-page {
   min-height: 100vh;
   display: flex;
@@ -181,7 +180,7 @@ export default {
   font-family: 'Inter', 'Helvetica Neue', sans-serif;
 }
 
-/* ── NAV ── */
+
 .top-nav {
   background: #ffffff;
   border-bottom: 1px solid rgba(0, 0, 0, 0.07);
@@ -247,7 +246,7 @@ export default {
   color: #1a1a2e !important;
 }
 
-/* ── MAIN ── */
+
 .login-main {
   flex: 1;
   display: flex;
@@ -256,7 +255,7 @@ export default {
   padding: 2rem 1rem;
 }
 
-/* ── CARD ── */
+
 .login-card {
   display: flex;
   width: 100%;
@@ -267,7 +266,7 @@ export default {
   background: #ffffff;
 }
 
-/* ── LEFT PANEL ── */
+
 .panel-left {
   background: #1a6fd4;
   padding: 2.5rem 2rem;
@@ -319,7 +318,7 @@ export default {
   height: 11px;
 }
 
-/* ── RIGHT PANEL ── */
+
 .panel-right {
   flex: 1;
   padding: 2.5rem 2.2rem;
@@ -337,7 +336,7 @@ export default {
   letter-spacing: -0.3px;
 }
 
-/* ── ERROR ── */
+
 .error-alert {
   background: #fee2e2;
   color: #b91c1c;
@@ -348,7 +347,7 @@ export default {
   margin-bottom: 1rem;
 }
 
-/* ── FORM ── */
+
 .form-group {
   margin-bottom: 1rem;
 }
@@ -430,7 +429,7 @@ export default {
 .btn-login:hover  { background: #e08800; }
 .btn-login:active { transform: scale(0.985); }
 
-/* ── REGISTER LINK ── */
+
 .register-row {
   text-align: center;
   margin-top: 1rem;
@@ -444,7 +443,7 @@ export default {
 }
 .register-row a:hover { text-decoration: underline; }
 
-/* ── RESPONSIVE ── */
+
 @media (max-width: 600px) {
   .login-card { flex-direction: column; }
   .panel-left { flex: none; padding: 1.75rem 1.5rem; }
