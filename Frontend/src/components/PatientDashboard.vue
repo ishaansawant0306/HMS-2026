@@ -139,7 +139,7 @@
 
             <div class="form-group">
               <label>Date:</label>
-              <input v-model="bookingForm.date" type="date" class="form-control" />
+              <input v-model="bookingForm.date" type="date" class="form-control" :min="minDate" :max="maxDate" />
             </div>
 
             <div class="form-group">
@@ -228,10 +228,11 @@
           <div class="modal-body">
             <p style="margin-bottom: 16px;"><strong>Current Appointment:</strong><br>
                 Dr. {{ selectedRescheduleAppointment && selectedRescheduleAppointment.doctor_name }} - {{ selectedRescheduleAppointment && selectedRescheduleAppointment.date }} {{ selectedRescheduleAppointment && selectedRescheduleAppointment.time }}
+            </p>
 
             <div class="form-group">
               <label>New Date:</label>
-              <input v-model="rescheduleForm.date" type="date" class="form-control" />
+              <input v-model="rescheduleForm.date" type="date" class="form-control" :min="minDate" :max="maxDate" />
             </div>
 
             <div class="form-group">
@@ -361,6 +362,15 @@ export default {
     };
   },
   computed: {
+    minDate() {
+      const d = new Date();
+      return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+    },
+    maxDate() {
+      const d = new Date();
+      d.setDate(d.getDate() + 7);
+      return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+    },
     upcomingAppointments() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -589,8 +599,22 @@ export default {
           { headers: { Authorization: `Bearer ${token}` } }
         );
         
+        // Optimistically add the appointment to local state for immediate UI update
+        if (response.data.appointment) {
+          this.appointments.push({
+            id: response.data.appointment.id,
+            doctor_name: response.data.appointment.doctor_name,
+            specialization: response.data.appointment.specialization,
+            date: response.data.appointment.date,
+            time: response.data.appointment.time,
+            status: response.data.appointment.status
+          });
+        }
+        
         alert("Appointment booked successfully!");
         this.closeBookingModal();
+        
+        // Still fetch appointments to ensure consistency (cache should be cleared on backend)
         this.fetchAppointments();
       } catch (err) {
         alert(err.response?.data?.error || "Failed to book appointment");
@@ -614,8 +638,17 @@ export default {
           { headers: { Authorization: `Bearer ${token}` } }
         );
         
+        // Optimistically update the appointment in local state
+        const appointmentIndex = this.appointments.findIndex(appt => appt.id === this.selectedRescheduleAppointment.id);
+        if (appointmentIndex !== -1) {
+          this.appointments[appointmentIndex].date = this.rescheduleForm.date;
+          this.appointments[appointmentIndex].time = this.rescheduleForm.time;
+        }
+        
         alert("Appointment rescheduled successfully!");
         this.closeRescheduleModal();
+        
+        // Still fetch appointments to ensure consistency
         this.fetchAppointments();
       } catch (err) {
         alert(err.response?.data?.error || "Failed to reschedule appointment");
@@ -635,7 +668,12 @@ export default {
           { headers: { Authorization: `Bearer ${token}` } }
         );
         
+        // Optimistically remove the appointment from local state
+        this.appointments = this.appointments.filter(appt => appt.id !== id);
+        
         alert("Appointment cancelled successfully!");
+        
+        // Still fetch appointments to ensure consistency
         this.fetchAppointments();
       } catch (err) {
         alert(err.response?.data?.error || "Failed to cancel appointment");
@@ -834,6 +872,8 @@ export default {
   color: #334d6e;
   font-size: 14px;
 }
+
+.link-btn {
   text-decoration: underline;
 }
 

@@ -19,14 +19,23 @@ def make_patient_cache_key():
     return f"patient:{user_id}:{request.path}:{query_string}"
 
 
+def clear_patient_cache(user_id):
+    """Clear all cached data for a specific patient"""
+    # Clear appointments cache
+    cache.delete(f"patient:{user_id}:/api/patient/appointments:")
+    # Clear dashboard cache
+    cache.delete(f"patient:{user_id}:/api/patient/dashboard:")
+    # Clear medical history cache
+    cache.delete(f"patient:{user_id}:/api/patient/medical-history:")
+
+
 @patient_bp.route('/dashboard', methods=['GET'])
 @jwt_required()
 @require_role('patient')
 @cache.cached(timeout=30, key_prefix=make_patient_cache_key)
 def dashboard():
-    """
-    Patient dashboard - shows appointment status, available specializations, etc.
-    """
+     
+
     try:
         current_user_id = get_jwt_identity()
         patient = Patient.query.filter_by(user_id=current_user_id).first()
@@ -107,14 +116,12 @@ def get_profile():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
+#Update patient's profile information
 @patient_bp.route('/profile', methods=['PUT'])
 @jwt_required()
 @require_role('patient')
 def update_profile():
-    """
-    Update patient's profile information
-    """
+    
     try:
         current_user_id = get_jwt_identity()
         patient = Patient.query.filter_by(user_id=current_user_id).first()
@@ -158,6 +165,9 @@ def update_profile():
         
         db.session.commit()
         
+        # Clear patient cache to ensure updated profile data is shown immediately
+        clear_patient_cache(current_user_id)
+        
         return jsonify({
             'status': 'success',
             'message': 'Profile updated successfully'
@@ -172,10 +182,7 @@ def update_profile():
 @require_role('patient')
 @cache.cached(timeout=60, key_prefix=make_patient_cache_key)
 def get_available_doctors():
-    """
-    Get list of available doctors for the next 7 days
-    Optional query parameters: specialization, name (to filter by name or specialization)
-    """
+    
     try:
         specialization = request.args.get('specialization', '').strip()
         name = request.args.get('name', '').strip()
@@ -217,10 +224,7 @@ def get_available_doctors():
 @jwt_required()
 @require_role('patient')
 def book_appointment():
-    """
-    Book an appointment with a doctor
-    Required fields: doctor_id, date, time
-    """
+    
     try:
         current_user_id = get_jwt_identity()
         patient = Patient.query.filter_by(user_id=current_user_id).first()
@@ -265,6 +269,9 @@ def book_appointment():
         
         db.session.add(appointment)
         db.session.commit()
+        
+        # Clear patient cache to ensure updated appointments are shown immediately
+        clear_patient_cache(current_user_id)
         
         return jsonify({
             'status': 'success',
@@ -327,6 +334,9 @@ def reschedule_appointment(appointment_id):
         
         db.session.commit()
         
+        # Clear patient cache to ensure updated appointments are shown immediately
+        clear_patient_cache(current_user_id)
+        
         return jsonify({
             'status': 'success',
             'message': 'Appointment rescheduled successfully',
@@ -365,6 +375,9 @@ def cancel_appointment(appointment_id):
         appointment.status = 'Cancelled'
         db.session.commit()
         
+        # Clear patient cache to ensure updated appointments are shown immediately
+        clear_patient_cache(current_user_id)
+        
         return jsonify({
             'status': 'success',
             'message': 'Appointment cancelled successfully'
@@ -379,9 +392,7 @@ def cancel_appointment(appointment_id):
 @require_role('patient')
 @cache.cached(timeout=60, key_prefix=make_patient_cache_key)
 def get_appointments():
-    """
-    Get all appointments for the patient (upcoming and past)
-    """
+    
     try:
         current_user_id = get_jwt_identity()
         patient = Patient.query.filter_by(user_id=current_user_id).first()
@@ -417,15 +428,13 @@ def get_appointments():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
+#complete medical history (completed appointments with diagnoses and prescriptions)
 @patient_bp.route('/medical-history', methods=['GET'])
 @jwt_required()
 @require_role('patient')
 @cache.cached(timeout=60, key_prefix=make_patient_cache_key)
 def get_medical_history():
-    """
-    Get complete medical history (completed appointments with diagnoses and prescriptions)
-    """
+   
     try:
         current_user_id = get_jwt_identity()
         patient = Patient.query.filter_by(user_id=current_user_id).first()

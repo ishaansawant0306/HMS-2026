@@ -2,15 +2,19 @@
 Celery configuration for HMS background jobs
 """
 import os
+import sys
 from celery import Celery
 from datetime import datetime, timedelta
-from flask import Flask
+
+# Add current directory to path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Initialize Celery
 celery_app = Celery(
-    __name__,
+    'hms_tasks',
     broker=os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0'),
-    backend=os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+    backend=os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0'),
+    include=['tasks']
 )
 
 # Configure Celery
@@ -23,7 +27,6 @@ celery_app.conf.update(
     task_track_started=True,
     task_time_limit=30 * 60,  # 30 minutes
     result_expires=3600,  # Results expire in 1 hour
-    imports=['tasks'],
 )
 
 # Load beat schedule and task routing configuration
@@ -35,12 +38,17 @@ try:
 except ImportError:
     pass
 
-def make_celery(app: Flask):
+def make_celery(app=None):
     """Create Celery instance configured with Flask app"""
-    class ContextTask(celery_app.Task):
-        def __call__(self, *args, **kwargs):
-            with app.app_context():
-                return self.run(*args, **kwargs)
-    
-    celery_app.Task = ContextTask
+    if app:
+        class ContextTask(celery_app.Task):
+            def __call__(self, *args, **kwargs):
+                with app.app_context():
+                    return self.run(*args, **kwargs)
+        
+        celery_app.Task = ContextTask
     return celery_app
+
+# For running celery directly
+if __name__ == '__main__':
+    celery_app.start()
