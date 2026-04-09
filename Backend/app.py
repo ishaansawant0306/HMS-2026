@@ -3,6 +3,11 @@ from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from datetime import timedelta
 import os
+from dotenv import load_dotenv
+
+# Load .env variables FIRST before anything else
+load_dotenv()
+
 from extensions import db, cache, mail
 from routes import register_blueprints
 from init_db import init_admin, init_test_doctor

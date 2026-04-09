@@ -541,10 +541,11 @@ def get_medical_history():
 def export_treatment_history():
     """
     Synchronous CSV export - generates and streams the file directly.
-    No Celery or Redis required.
+    Also sends a Google Chat webhook alert once the export is complete.
     """
     import csv
     import io
+    import requests as http_requests
     from flask import Response
 
     try:
@@ -581,6 +582,19 @@ def export_treatment_history():
 
         output.seek(0)
         filename = f"treatment_history_{patient.user.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+
+        # Send Google Chat webhook alert once export is done
+        webhook_url = os.environ.get('NOTIFICATION_WEBHOOK_URL')
+        if webhook_url:
+            try:
+                alert_text = (
+                    f"✅ *CSV Export Complete* for patient *{patient.user.username}*.\n"
+                    f"File: `{filename}` | Records: `{len(appointments)}`\n"
+                    f"The file has been downloaded to their browser."
+                )
+                http_requests.post(webhook_url, json={"text": alert_text}, timeout=5)
+            except Exception:
+                pass  # Don't block the download if webhook fails
 
         return Response(
             output.getvalue(),
