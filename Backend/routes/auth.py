@@ -9,12 +9,9 @@ from datetime import datetime
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
 
+# register a patient 
 @auth_bp.route('/register/patient', methods=['POST'])
 def register_patient():
-    
-     
-
-      
     try:
         data = request.get_json() or {}
 
@@ -48,9 +45,9 @@ def register_patient():
             is_active=True
         )
         db.session.add(user)
-        db.session.flush()  # Get user ID without committing
+        db.session.flush()  
 
-        # Create patient profile
+        
         patient = Patient(
             user_id=user.id,
             contact_number=data.get('contact_number', ''),
@@ -82,13 +79,9 @@ def register_patient():
 def register_patient_alias():
     return register_patient()
 
-
+# login for all
 @auth_bp.route('/login', methods=['POST'])
 def login():
-    """
-    Login endpoint for all user roles (admin, doctor, patient)
-    Returns JWT token and user info with dashboard redirect
-    """
     try:
         data = request.get_json()
         
@@ -104,13 +97,13 @@ def login():
         if not user.is_active:
             return jsonify({'status': 'error', 'message': 'User account is inactive'}), 403
         
-        # Check if doctor is blacklisted
+        # to see if doc is blacklisted or not 
         if user.role == 'doctor':
             doctor = Doctor.query.filter_by(user_id=user.id).first()
             if doctor and doctor.is_blacklisted:
                 return jsonify({'status': 'error', 'message': 'Your account has been blacklisted. Please contact admin.'}), 403
         
-        # Create JWT token
+        
         token = create_access_token(
             identity=str(user.id),
             additional_claims={
@@ -119,7 +112,7 @@ def login():
             }
         )
         
-        # Determine redirect dashboard based on role
+        
         dashboard_redirect = {
             'admin': '/api/admin/dashboard',
             'doctor': '/api/doctor/dashboard',
@@ -145,9 +138,7 @@ def login():
 @auth_bp.route('/me', methods=['GET'])
 @jwt_required()
 def get_current_user():
-    """
-    Get current authenticated user information
-    """
+    
     try:
         user_id = get_jwt_identity()
         user = User.query.get(user_id)

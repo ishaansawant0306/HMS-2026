@@ -1,25 +1,13 @@
-"""
-Admin initialization script - creates a default admin user if it doesn't exist.
-This should be run when the application starts.
-"""
+
 from models import db, User, Doctor
 from utils.auth import hash_password
 
-
+# initialises  admin user
 def init_admin():
-    """
-    Initialize admin user if it doesn't already exist in the database.
-    
-    Default admin credentials:
-        username: admin
-        email: admin@hospital.com
-        password: admin123 (should be changed in production)
-    """
-    # Check if admin already exists
     existing_admin = User.query.filter_by(role='admin').first()
     
     if existing_admin:
-        print("✓ Admin user already exists")
+        print(" Admin user already exists")
     else:
         admin_user = User(
             username='admin',
@@ -31,24 +19,21 @@ def init_admin():
         try:
             db.session.add(admin_user)
             db.session.commit()
-            print("✓ Admin user created successfully")
+            print(" Admin user created successfully")
             print(f"  Username: admin")
             print(f"  Email: admin@hospital.com")
             print(f"  Password: admin123")
-            print("  ⚠️  Please change the password after first login!")
+            print("    Please change the password after first login!")
         except Exception as e:
             db.session.rollback()
-            print(f"✗ Error creating admin user: {str(e)}")
+            print(f" Error creating admin user: {str(e)}")
             raise
 
 
 def remove_test_doctor():
-    """
-    Remove legacy seeded test doctor account if present.
-    """
     test_user = User.query.filter_by(email='testdoctor@hospital.com', role='doctor').first()
     if not test_user:
-        print("✓ Legacy test doctor not present")
+        print(" Legacy test doctor not present")
         return
 
     try:
@@ -57,8 +42,8 @@ def remove_test_doctor():
             db.session.delete(doctor)
         db.session.delete(test_user)
         db.session.commit()
-        print("✓ Legacy test doctor removed")
+        print(" Legacy test doctor removed")
     except Exception as e:
         db.session.rollback()
-        print(f"✗ Error removing legacy test doctor: {str(e)}")
+        print(f" Error removing legacy test doctor: {str(e)}")
         raise

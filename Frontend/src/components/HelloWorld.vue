@@ -1,6 +1,6 @@
 <template>
   <div class="doctor-page">
-    <!-- NAVBAR -->
+    <!-- navbar -->
     <nav class="top-nav">
       <div class="nav-inner">
         <span class="logo">MediZentrum</span>
@@ -8,10 +8,10 @@
       </div>
     </nav>
 
-    <!-- MAIN -->
+    <!-- main -->
     <main class="dashboard">
 
-      <!-- WELCOME -->
+      <!-- welcome -->
       <div class="card">
         <h2>Welcome {{ doctor.name }}</h2>
       </div>

@@ -1,6 +1,6 @@
 <template>
   <div class="doctor-dashboard">
-    <!-- TOP NAVBAR -->
+    <!-- top nabar -->
     <div class="top-navbar">
       <div class="nav-left">MediZentrum</div>
       <div class="nav-center">Doctor Dashboard</div>
@@ -10,11 +10,11 @@
     </div>
 
     <div class="page-wrapper">
-      <!-- ALERTS -->
+      <!-- alerts -->
       <div v-if="error" class="alert alert-danger">{{ error }}</div>
       <div v-if="successMessage" class="alert alert-success">{{ successMessage }}</div>
 
-      <!-- WELCOME CARD -->
+      <!-- welcome card -->
       <section class="top-card">
         <div class="welcome-section">
           <h1 class="welcome-title">Welcome {{ doctor.name }}</h1>
@@ -25,7 +25,7 @@
         </button>
       </section>
 
-      <!-- UPCOMING APPOINTMENTS CARD -->
+      <!-- upcoming appointments  -->
       <section class="content-card">
         <h2 class="section-title">Upcoming Appointments ({{ appointments.length }})</h2>
 
@@ -65,7 +65,7 @@
         </div>
       </section>
 
-      <!-- ASSIGNED PATIENTS CARD -->
+      <!-- assigned patients -->
       <section class="content-card">
         <h2 class="section-title">Assigned Patients ({{ patients.length }})</h2>
 
@@ -85,7 +85,7 @@
         </div>
       </section>
 
-      <!-- PATIENT HISTORY MODAL -->
+      <!-- pateint history modal-->
       <div v-if="showPatientHistoryModal" class="modal-overlay" @click="closePatientHistoryModal">
         <div class="modal-box" @click.stop>
           <div class="modal-header">
@@ -119,7 +119,7 @@
         </div>
       </div>
 
-      <!-- TREATMENT MODAL -->
+      <!-- treatment modal -->
       <div v-if="showTreatmentModal" class="modal-overlay" @click="closeTreatmentModal">
         <div class="modal-box" @click.stop>
           <div class="modal-header">
@@ -156,7 +156,7 @@
         </div>
       </div>
 
-      <!-- AVAILABILITY MODAL -->
+      <!-- availability modal -->
       <div v-if="showAvailabilityModal" class="modal-overlay" @click="closeAvailabilityModal">
         <div class="modal-box modal-lg" @click.stop>
           <div class="modal-header">
@@ -246,7 +246,7 @@ export default {
         const token = localStorage.getItem("token");
         const headers = { Authorization: `Bearer ${token}` };
 
-        // Fetch doctor dashboard
+        
         const dashRes = await axios.get(`${API_BASE_URL}/api/doctor/dashboard`, { headers });
         this.doctor = dashRes.data.doctor || {};
         this.appointments = dashRes.data.upcoming_appointments || [];
@@ -257,7 +257,7 @@ export default {
       } catch (err) {
         if (err.response?.status === 403) {
           this.error = err.response.data.error || "Access denied";
-          // Redirect to login if blacklisted
+          
           setTimeout(() => {
             localStorage.removeItem("token");
             localStorage.removeItem("role");
@@ -495,7 +495,7 @@ export default {
   padding: 0 30px;
 }
 
-/* ALERTS */
+/* alerts */
 .alert {
   padding: 12px 16px;
   border-radius: 8px;
@@ -515,7 +515,7 @@ export default {
   border-left-color: #c3e6cb;
 }
 
-/* CARDS */
+/* cards */
 .top-card,
 .content-card {
   background: #ffffff;
@@ -562,7 +562,7 @@ export default {
   color: #222;
 }
 
-/* TAB LE */
+/*  tables */
 .table-shell {
   border: 1px solid #e6e6e6;
   border-radius: 8px;
@@ -602,7 +602,7 @@ export default {
   flex-wrap: wrap;
 }
 
-/* PATIENT LIST */
+/* patient list */
 .patient-list {
   display: flex;
   flex-direction: column;
@@ -642,7 +642,7 @@ export default {
   font-size: 12px;
 }
 
-/* BUTTONS */
+/* buttons */
 .btn {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -714,7 +714,7 @@ export default {
   color: #084298;
 }
 
-/* MODAL */
+/* modal */
 .modal-overlay {
   position: fixed;
   top: 0;

@@ -1,15 +1,13 @@
-"""
-Celery configuration for HMS background jobs
-"""
+
 import os
 import sys
 from celery import Celery
 from datetime import datetime, timedelta
 
-# Add current directory to path
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# Initialize Celery
+# initialise celery
 celery_app = Celery(
     'hms_tasks',
     broker=os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0'),
@@ -17,7 +15,7 @@ celery_app = Celery(
     include=['tasks']
 )
 
-# Configure Celery
+# config celery
 celery_app.conf.update(
     task_serializer='json',
     accept_content=['json'],
@@ -25,11 +23,11 @@ celery_app.conf.update(
     timezone='Asia/Kolkata',
     enable_utc=True,
     task_track_started=True,
-    task_time_limit=30 * 60,  # 30 minutes
-    result_expires=3600,  # Results expire in 1 hour
+    task_time_limit=30 * 60,  
+    result_expires=3600,  
 )
 
-# Load beat schedule and task routing configuration
+# beat scedule 
 try:
     from celery_beat_conf import CELERY_BEAT_SCHEDULE, CELERY_TASK_ROUTES, CELERY_CONFIG
     celery_app.conf.beat_schedule = CELERY_BEAT_SCHEDULE
@@ -39,7 +37,7 @@ except ImportError:
     pass
 
 def make_celery(app=None):
-    """Create Celery instance configured with Flask app"""
+    
     if app:
         class ContextTask(celery_app.Task):
             def __call__(self, *args, **kwargs):
@@ -49,6 +47,6 @@ def make_celery(app=None):
         celery_app.Task = ContextTask
     return celery_app
 
-# For running celery directly
+
 if __name__ == '__main__':
     celery_app.start()

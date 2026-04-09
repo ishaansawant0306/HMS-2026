@@ -10,11 +10,9 @@
     </div>
 
     <div class="page-wrapper">
-      <!-- ALERTS -->
       <div v-if="error" class="alert alert-danger">{{ error }}</div>
       <div v-if="successMessage" class="alert alert-success">{{ successMessage }}</div>
 
-      <!-- WELCOME & SEARCH CARD -->
       <div class="card welcome-card">
         <div class="welcome-content">
           <h2 class="card-title">Search</h2>
@@ -325,7 +323,7 @@ export default {
       pastAppointments: [],
       
       searchTerm: "",
-      searchType: "doctors", // 'doctors' or 'patients'
+      searchType: "doctors", 
       
       error: "",
       successMessage: "",
@@ -333,7 +331,7 @@ export default {
       showPatientModal: false,
       showDetailsModal: false,
       isEditMode: false,
-      detailsType: "", // 'doctor' or 'patient'
+      detailsType: "", 
       detailsTitle: "",
       selectedDetails: {},
       loading: true,
@@ -369,25 +367,24 @@ export default {
         const token = localStorage.getItem("token");
         const headers = { Authorization: `Bearer ${token}` };
 
-        // Fetch dashboard stats
+        
         const statsRes = await axios.get(`${API_BASE_URL}/api/admin/dashboard`, { headers });
         this.dashboardStats = statsRes.data.data || statsRes.data.dashboard || statsRes.data;
 
-        // Fetch doctors including blacklisted ones
+        
         const doctorsRes = await axios.get(`${API_BASE_URL}/api/admin/doctors?include_blacklisted=true`, { headers });
         this.allDoctors = doctorsRes.data.doctors || [];
         this.filteredDoctors = this.allDoctors;
 
-        // Fetch patients including blacklisted ones
         const patientsRes = await axios.get(`${API_BASE_URL}/api/admin/patients?include_blacklisted=true`, { headers });
         this.patients = patientsRes.data.patients || [];
         this.filteredPatients = this.patients;
 
-        // Fetch appointments
+        
         const appointmentsRes = await axios.get(`${API_BASE_URL}/api/admin/appointments`, { headers });
         this.appointments = appointmentsRes.data.appointments || [];
         
-        // Separate upcoming and past appointments
+        
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
@@ -497,7 +494,6 @@ export default {
       const rawName = (patient?.name || patient?.username || "").toString().trim();
       if (!rawName) return "Patient";
 
-      // If backend sends email-like value, derive a readable first name from local part.
       const base = rawName.includes("@") ? rawName.split("@")[0] : rawName;
       const cleaned = base.replace(/[._-]+/g, " ").trim();
       const firstToken = cleaned.split(/\s+/)[0] || "Patient";
@@ -717,7 +713,7 @@ export default {
   background: #d43d3d !important;
 }
 
-/* ALERTS */
+/* alerts */
 .alert {
   padding: 12px 16px;
   border-radius: 8px;
@@ -737,7 +733,7 @@ export default {
   border-left-color: #c3e6cb;
 }
 
-/* STATISTICS CARDS */
+/* stats cards */
 .stats-container {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -771,7 +767,7 @@ export default {
   color: #666;
 }
 
-/* CARDS */
+/* cards */
 .card {
   background: #ffffff;
   border: 1px solid #ebefe8;
@@ -834,7 +830,7 @@ export default {
   background: white;
 }
 
-/* BUTTONS */
+/* buttons */
 .btn {
   border-radius: 8px;
   padding: 8px 16px;
@@ -890,7 +886,7 @@ export default {
   background: #f5f5f5;
 }
 
-/* LIST */
+/* list */
 .simple-list {
   display: flex;
   flex-direction: column;
@@ -959,7 +955,7 @@ export default {
   flex-wrap: wrap;
 }
 
-/* TABLE */
+/* table */
 .table-shell {
   border: 1px solid #e7e7e7;
   border-radius: 8px;
@@ -1018,7 +1014,7 @@ export default {
   color: #842029;
 }
 
-/* MODAL */
+/* modal */
 .modal-overlay {
   position: fixed;
   top: 0;

@@ -1,9 +1,4 @@
-"""
-Celery tasks for HMS background jobs
-- Daily appointment reminders
-- Monthly doctor activity reports
-- CSV export of patient treatment history
-"""
+
 import os
 import csv
 import requests
@@ -17,22 +12,14 @@ NOTIFICATION_WEBHOOK_URL = os.getenv('NOTIFICATION_WEBHOOK_URL')
 EXPORTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'exports')
 os.makedirs(EXPORTS_DIR, exist_ok=True)
 
-# Note: Configure Flask-Mail in your app.py for email functionality
 
-# ============================================================================
-# TASK 1: DAILY APPOINTMENT REMINDERS
-# ============================================================================
-
+#reminder of today's appointment 
 @shared_task
 def send_daily_appointment_reminders():
-    """
-    Send reminders to patients about appointments scheduled for today
-    Runs daily at a scheduled time (configured in Celery Beat)
-    """
     try:
         today = datetime.now().date()
         
-        # Find all appointments scheduled for today
+        
         appointments = Appointment.query.filter(
             Appointment.date == today,
             Appointment.status == 'Booked'
@@ -92,19 +79,13 @@ MediZentrum Hospital Management System
         }
 
 
-# ============================================================================
-# TASK 2: MONTHLY DOCTOR ACTIVITY REPORT
-# ============================================================================
 
+#Generate monthly activity report
 @shared_task
 def generate_monthly_doctor_report(doctor_id=None, month=None, year=None):
-    """
-    Generate monthly activity report for doctor(s)
-    Includes: appointments, diagnoses, treatments provided
-    Typically run on the 1st of each month
-    """
+    
     try:
-        # Default to previous month if not specified
+        
         if not month or not year:
             today = datetime.now().date()
             if today.month == 1:
@@ -114,7 +95,7 @@ def generate_monthly_doctor_report(doctor_id=None, month=None, year=None):
                 year = today.year
                 month = today.month - 1
         
-        # Get doctors to generate reports for
+        
         if doctor_id:
             doctors = [Doctor.query.get(doctor_id)]
         else:
@@ -129,7 +110,7 @@ def generate_monthly_doctor_report(doctor_id=None, month=None, year=None):
             doctor_email = doctor.user.email
             doctor_name = doctor.user.username
             
-            # Get all completed appointments for the month
+            
             appointments = Appointment.query.filter(
                 Appointment.doctor_id == doctor.id,
                 Appointment.status == 'Completed',
@@ -140,7 +121,7 @@ def generate_monthly_doctor_report(doctor_id=None, month=None, year=None):
             if not appointments:
                 continue
             
-            # Build report
+            
             report_html = f"""
             <html>
             <head>
@@ -174,7 +155,7 @@ def generate_monthly_doctor_report(doctor_id=None, month=None, year=None):
                         </tr>
             """
             
-            # Add appointment details
+           
             for appointment in appointments:
                 treatment = Treatment.query.filter_by(appointment_id=appointment.id).first()
                 diagnosis = treatment.diagnosis if treatment else "N/A"
@@ -199,7 +180,7 @@ def generate_monthly_doctor_report(doctor_id=None, month=None, year=None):
             </html>
             """
             
-            # Save HTML file locally since emails are dummy
+            
             filename = f"monthly_report_{doctor_name.replace(' ', '_')}_{month}_{year}.html"
             filepath = os.path.join(EXPORTS_DIR, filename)
             with open(filepath, 'w', encoding='utf-8') as f:
@@ -234,17 +215,10 @@ def generate_monthly_doctor_report(doctor_id=None, month=None, year=None):
             'error': str(e)
         }
 
-
-# ============================================================================
-# TASK 3: CSV EXPORT OF PATIENT TREATMENT HISTORY
-# ============================================================================
-
+# csv export 
 @shared_task
 def export_patient_treatment_history(patient_id):
-    """
-    Generate CSV export of patient's complete treatment history
-    Returns file path or download URL
-    """
+    
     try:
         patient = Patient.query.get(patient_id)
         if not patient:
@@ -253,13 +227,13 @@ def export_patient_treatment_history(patient_id):
                 'error': 'Patient not found'
             }
         
-        # Get all completed appointments with treatments
+        
         appointments = Appointment.query.filter(
             Appointment.patient_id == patient_id,
             Appointment.status == 'Completed'
         ).order_by(Appointment.date.desc()).all()
         
-        # Generate CSV data
+        
         csv_data = []
         headers = [
             'User ID', 'Username', 'Consulting Doctor', 'Appointment Date',
@@ -282,11 +256,11 @@ def export_patient_treatment_history(patient_id):
             ]
             csv_data.append(row)
         
-        # Create CSV file
+        
         filename = f"treatment_history_{patient.user.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
         filepath = os.path.join(EXPORTS_DIR, filename)
         
-        # Write CSV
+        
         try:
             with open(filepath, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
@@ -343,9 +317,7 @@ MediZentrum Hospital Management System
         }
 
 
-# ============================================================================
-# HELPER FUNCTIONS
-# ============================================================================
+
 
 def send_notification(recipient_email, subject, body, html=None, webhook_payload=None):
     """Send a notification by email first, then fallback to webhook if configured."""
@@ -377,14 +349,12 @@ def send_notification(recipient_email, subject, body, html=None, webhook_payload
 
     return sent
 
-
+# webhook notifications 
 def send_via_webhook(payload):
-    """Send a webhook notification mapped specifically for Google Chat natively."""
     if not NOTIFICATION_WEBHOOK_URL:
         return False
 
     try:
-        # Standardize for Google Chat integration
         chat_payload = {"text": payload.get('text', str(payload))}
         
         response = requests.post(NOTIFICATION_WEBHOOK_URL, json=chat_payload, timeout=10)

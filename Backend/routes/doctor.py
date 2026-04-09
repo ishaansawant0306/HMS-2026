@@ -1,7 +1,4 @@
-"""
-Doctor routes for Hospital Management System
-Handle doctor-specific operations like viewing appointments, updating treatment, etc.
-"""
+
 from flask import Blueprint, request, jsonify
 from models import db, User, Doctor, Patient, Appointment, Treatment
 from utils.auth import require_role
@@ -11,14 +8,11 @@ import json
 
 doctor_bp = Blueprint('doctor', __name__, url_prefix='/api/doctor')
 
-
+# doctor dashboard 
 @doctor_bp.route('/dashboard', methods=['GET'])
 @jwt_required()
 @require_role('doctor')
 def dashboard():
-    """
-    Doctor dashboard - shows upcoming appointments and patient list
-    """
     try:
         current_user_id = get_jwt_identity()
         
@@ -90,14 +84,11 @@ def dashboard():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
+# to get all appointments 
 @doctor_bp.route('/appointments', methods=['GET'])
 @jwt_required()
 @require_role('doctor')
 def get_appointments():
-    """
-    Get all appointments for the doctor
-    """
     try:
         current_user_id = get_jwt_identity()
         doctor = Doctor.query.filter_by(user_id=current_user_id).first()
@@ -132,13 +123,11 @@ def get_appointments():
         return jsonify({'error': str(e)}), 500
 
 
+# marking an appointment 
 @doctor_bp.route('/appointments/<int:appointment_id>/complete', methods=['POST'])
 @jwt_required()
 @require_role('doctor')
 def complete_appointment(appointment_id):
-    """
-    Mark an appointment as completed and optionally add treatment details
-    """
     try:
         current_user_id = get_jwt_identity()
         doctor = Doctor.query.filter_by(user_id=current_user_id).first()
@@ -152,7 +141,7 @@ def complete_appointment(appointment_id):
         
         appointment.status = 'Completed'
         
-        # Add treatment details if provided
+        # to add treatment details 
         data = request.get_json()
         if data and ('diagnosis' in data or 'prescription' in data or 'notes' in data):
             treatment = Treatment.query.filter_by(appointment_id=appointment_id).first()
@@ -177,14 +166,11 @@ def complete_appointment(appointment_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-
+# to cancel an appointment 
 @doctor_bp.route('/appointments/<int:appointment_id>/cancel', methods=['POST'])
 @jwt_required()
 @require_role('doctor')
 def cancel_appointment(appointment_id):
-    """
-    Cancel an appointment
-    """
     try:
         current_user_id = get_jwt_identity()
         doctor = Doctor.query.filter_by(user_id=current_user_id).first()
@@ -208,16 +194,11 @@ def cancel_appointment(appointment_id):
         return jsonify({'error': str(e)}), 500
 
 
+# to set availability 
 @doctor_bp.route('/availability', methods=['POST'])
 @jwt_required()
 @require_role('doctor')
 def set_availability():
-    """
-    Set doctor's availability for the next 7 days
-    Expected JSON can be in either format:
-    1. {'availability': {...}} OR
-    2. {day_name: {'available': bool, 'start_time': '...', 'end_time': '...'}, ...}
-    """
     try:
         current_user_id = get_jwt_identity()
         doctor = Doctor.query.filter_by(user_id=current_user_id).first()
@@ -230,21 +211,21 @@ def set_availability():
         if not data:
             return jsonify({'error': 'Availability data required'}), 400
         
-        # Handle both formats
+        
         if 'availability' in data:
             availability_data = data['availability']
         else:
             availability_data = data
         
-        # Validate that we have some availability data
+        
         if not isinstance(availability_data, dict) or len(availability_data) == 0:
             return jsonify({'error': 'Invalid availability data format'}), 400
         
-        # Store availability as JSON string
+        
         doctor.availability = json.dumps(availability_data)
         db.session.commit()
         
-        # Actively invalidate cache allowing immediate patient UI updates
+        
         from extensions import cache
         cache.clear()
         
@@ -258,13 +239,11 @@ def set_availability():
         return jsonify({'error': str(e)}), 500
 
 
+# treatment history 
 @doctor_bp.route('/patient/<int:patient_id>/history', methods=['GET'])
 @jwt_required()
 @require_role('doctor')
 def get_patient_history(patient_id):
-    """
-    Get treatment history for a specific patient
-    """
     try:
         current_user_id = get_jwt_identity()
         doctor = Doctor.query.filter_by(user_id=current_user_id).first()
@@ -273,7 +252,7 @@ def get_patient_history(patient_id):
         if not patient:
             return jsonify({'error': 'Patient not found'}), 404
         
-        # Get all completed appointments for this patient with this doctor
+        
         appointments = Appointment.query.filter(
             Appointment.patient_id == patient_id,
             Appointment.doctor_id == doctor.id,
