@@ -6,11 +6,11 @@
       <div class="nav-inner">
         <span class="logo">MediZentrum</span>
         <ul class="nav-links">
-          <li><a href="#">Products</a></li>
-          <li><a href="#">Resources</a></li>
-          <li><a href="#">Company</a></li>
-          <li><a href="#" class="btn-demo">Book a Demo</a></li>
-          <li><a href="#" class="nav-login">Login</a></li>
+          <li><a href="#">About Us</a></li>
+          <li><a href="#">Specialities</a></li>
+          <li><a href="#">Services</a></li>
+          <li><a href="#">Patient's Care</a></li>
+          <li><a href="#">Contact us</a></li>
         </ul>
       </div>
     </nav>
@@ -29,7 +29,7 @@
                   <polyline points="2,6 5,9 10,3"/>
                 </svg>
               </span>
-              Anytime, Anywhere, Any Device
+              Anesthesiology
             </li>
             <li>
               <span class="check-icon">
@@ -37,7 +37,7 @@
                   <polyline points="2,6 5,9 10,3"/>
                 </svg>
               </span>
-              Go Paperless
+              Audiology and speech therapy
             </li>
             <li>
               <span class="check-icon">
@@ -45,7 +45,7 @@
                   <polyline points="2,6 5,9 10,3"/>
                 </svg>
               </span>
-              Secure Backup
+              chest medicine
             </li>
             <li>
               <span class="check-icon">
@@ -53,7 +53,7 @@
                   <polyline points="2,6 5,9 10,3"/>
                 </svg>
               </span>
-              Multi Location Support
+              Diabetology
             </li>
             <li>
               <span class="check-icon">
@@ -61,7 +61,7 @@
                   <polyline points="2,6 5,9 10,3"/>
                 </svg>
               </span>
-              Quick Insight On Key Performance
+              Colorectal surgery
             </li>
           </ul>
         </div>

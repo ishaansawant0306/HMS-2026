@@ -73,7 +73,7 @@
         <div class="simple-list">
           <div class="list-row" v-for="patient in filteredPatients" :key="patient.id" :class="{ 'blacklisted-row': patient.is_blacklisted }">
             <div class="list-info">
-              <div class="list-name" :class="{ strikethrough: patient.is_blacklisted }">{{ patient.name || patient.username }}</div>
+              <div class="list-name" :class="{ strikethrough: patient.is_blacklisted }">{{ getPatientFirstName(patient) }}</div>
               <div class="list-subtext">{{ patient.email }}</div>
             </div>
             <div class="list-actions">
@@ -488,9 +488,21 @@ export default {
 
     showPatientDetails(patient) {
       this.detailsType = 'patient';
-      this.detailsTitle = `Patient Details - ${patient.name}`;
+      this.detailsTitle = `Patient Details - ${this.getPatientFirstName(patient)}`;
       this.selectedDetails = patient;
       this.showDetailsModal = true;
+    },
+
+    getPatientFirstName(patient) {
+      const rawName = (patient?.name || patient?.username || "").toString().trim();
+      if (!rawName) return "Patient";
+
+      // If backend sends email-like value, derive a readable first name from local part.
+      const base = rawName.includes("@") ? rawName.split("@")[0] : rawName;
+      const cleaned = base.replace(/[._-]+/g, " ").trim();
+      const firstToken = cleaned.split(/\s+/)[0] || "Patient";
+
+      return firstToken.charAt(0).toUpperCase() + firstToken.slice(1);
     },
 
     closeDetailsModal() {
@@ -589,8 +601,18 @@ export default {
     },
 
     async submitPatientForm() {
-      if (!this.patientForm.username || !this.patientForm.email) {
-        alert("Please fill all required fields");
+      const requiredFields = [
+        this.patientForm.username,
+        this.patientForm.email,
+        this.patientForm.age,
+        this.patientForm.gender,
+        this.patientForm.contact_number,
+        this.patientForm.height,
+        this.patientForm.weight
+      ];
+
+      if (requiredFields.some((field) => field === null || field === undefined || String(field).trim() === "")) {
+        alert("Please fill all required patient fields");
         return;
       }
 

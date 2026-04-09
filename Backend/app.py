@@ -10,7 +10,7 @@ load_dotenv()
 
 from extensions import db, cache, mail
 from routes import register_blueprints
-from init_db import init_admin, init_test_doctor
+from init_db import init_admin, remove_test_doctor
 
 
 def create_app():
@@ -75,9 +75,9 @@ def create_app():
         # Create all database tables
         db.create_all()
         
-        # Initialize admin user and a test doctor account
+        # Initialize admin user and clean up legacy seed data
         init_admin()
-        init_test_doctor()
+        remove_test_doctor()
     
     return app
 

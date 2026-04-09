@@ -42,39 +42,23 @@ def init_admin():
             raise
 
 
-def init_test_doctor():
+def remove_test_doctor():
     """
-    Initialize a default test doctor account if it doesn't already exist.
+    Remove legacy seeded test doctor account if present.
     """
-    existing_doctor = User.query.filter_by(email='testdoctor@hospital.com', role='doctor').first()
-    if existing_doctor:
-        print("✓ Test doctor already exists")
+    test_user = User.query.filter_by(email='testdoctor@hospital.com', role='doctor').first()
+    if not test_user:
+        print("✓ Legacy test doctor not present")
         return
 
-    user = User(
-        username='testdoctor',
-        email='testdoctor@hospital.com',
-        password_hash=hash_password('doctor123'),
-        role='doctor',
-        is_active=True
-    )
-    db.session.add(user)
-    db.session.flush()
-
-    doctor = Doctor(
-        user_id=user.id,
-        specialization='General Medicine',
-        availability='{"monday":"9AM-5PM","tuesday":"9AM-5PM"}',
-        is_blacklisted=False
-    )
-    db.session.add(doctor)
     try:
+        doctor = Doctor.query.filter_by(user_id=test_user.id).first()
+        if doctor:
+            db.session.delete(doctor)
+        db.session.delete(test_user)
         db.session.commit()
-        print("✓ Test doctor created successfully")
-        print(f"  Username: testdoctor")
-        print(f"  Email: testdoctor@hospital.com")
-        print(f"  Password: doctor123")
+        print("✓ Legacy test doctor removed")
     except Exception as e:
         db.session.rollback()
-        print(f"✗ Error creating test doctor: {str(e)}")
+        print(f"✗ Error removing legacy test doctor: {str(e)}")
         raise

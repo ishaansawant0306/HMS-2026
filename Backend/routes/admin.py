@@ -464,30 +464,70 @@ def update_patient(patient_id):
         if not patient:
             return jsonify({'error': 'Patient not found'}), 404
         
-        data = request.get_json()
-        
-        # Update user fields if provided
+        data = request.get_json() or {}
+
+        # Validate and normalize user fields
         if 'username' in data:
-            patient.user.username = data['username']
+            username = str(data.get('username', '')).strip()
+            if not username:
+                return jsonify({'error': 'Username is required'}), 400
+            if User.query.filter(User.username == username, User.id != patient.user_id).first():
+                return jsonify({'error': 'Username already in use'}), 400
+            patient.user.username = username
+
         if 'email' in data:
+            email = str(data.get('email', '')).strip()
+            if not email:
+                return jsonify({'error': 'Email is required'}), 400
             # Check if email already in use
-            if User.query.filter(User.email == data['email'], User.id != patient.user_id).first():
+            if User.query.filter(User.email == email, User.id != patient.user_id).first():
                 return jsonify({'error': 'Email already in use'}), 400
-            patient.user.email = data['email']
-        
-        # Update patient fields if provided
-        if 'age' in data:
-            patient.age = data['age']
-        if 'gender' in data:
-            patient.gender = data['gender']
+            patient.user.email = email
+
+        # Validate and normalize patient fields
         if 'contact_number' in data:
-            patient.contact_number = data['contact_number']
+            contact_number = str(data.get('contact_number', '')).strip()
+            if not contact_number:
+                return jsonify({'error': 'Contact number is required'}), 400
+            patient.contact_number = contact_number
+
+        if 'age' in data:
+            age_val = data.get('age')
+            if age_val in (None, ''):
+                return jsonify({'error': 'Age is required'}), 400
+            try:
+                patient.age = int(age_val)
+            except (ValueError, TypeError):
+                return jsonify({'error': 'Invalid age value'}), 400
+
+        if 'gender' in data:
+            gender = str(data.get('gender', '')).strip()
+            if not gender:
+                return jsonify({'error': 'Gender is required'}), 400
+            patient.gender = gender
+
         if 'address' in data:
-            patient.address = data['address']
+            # Address is optional
+            address = data.get('address')
+            patient.address = str(address).strip() if address is not None else None
+
         if 'height' in data:
-            patient.height = data['height']
+            height_val = data.get('height')
+            if height_val in (None, ''):
+                return jsonify({'error': 'Height is required'}), 400
+            try:
+                patient.height = float(height_val)
+            except (ValueError, TypeError):
+                return jsonify({'error': 'Invalid height value'}), 400
+
         if 'weight' in data:
-            patient.weight = data['weight']
+            weight_val = data.get('weight')
+            if weight_val in (None, ''):
+                return jsonify({'error': 'Weight is required'}), 400
+            try:
+                patient.weight = float(weight_val)
+            except (ValueError, TypeError):
+                return jsonify({'error': 'Invalid weight value'}), 400
         
         db.session.commit()
         

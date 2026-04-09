@@ -13,11 +13,8 @@
         <div class="welcome-row">
           <h2 class="section-title">Welcome {{ patientDisplayName }}</h2>
           <div class="top-links">
-            <button class="link-btn" @click="openEditProfileModal">edit profile</button>
-            <span>|</span>
-            <button class="link-btn" @click="showHistoryModal = true">History</button>
-            <span>|</span>
-            <button class="link-btn" @click="startHistoryExport">Export History</button>
+            <button class="btn btn-blue" @click="openEditProfileModal">edit profile</button>
+            <button class="btn btn-blue" @click="showHistoryModal = true">history</button>
           </div>
         </div>
         <div v-if="exportTaskId" class="export-status-row">
@@ -560,13 +557,19 @@ export default {
       
       let currentMin = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
       const endMin = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+      const now = new Date();
+      const selectedDateOnly = new Date(selectedDateStr + 'T00:00:00');
+      const todayOnly = new Date();
+      todayOnly.setHours(0, 0, 0, 0);
+      const isToday = selectedDateOnly.getTime() === todayOnly.getTime();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
       
       while (currentMin < endMin) {
         const h = Math.floor(currentMin / 60);
         const m = currentMin % 60;
         const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
         
-        if (!dayBookedSlots.includes(timeStr)) {
+        if (!dayBookedSlots.includes(timeStr) && (!isToday || currentMin >= nowMinutes)) {
           slots.push({ value: timeStr, label: timeStr });
         }
         currentMin += 30;
@@ -633,13 +636,19 @@ export default {
       
       let currentMin = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
       const endMin = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+      const now = new Date();
+      const selectedDateOnly = new Date(selectedDateStr + 'T00:00:00');
+      const todayOnly = new Date();
+      todayOnly.setHours(0, 0, 0, 0);
+      const isToday = selectedDateOnly.getTime() === todayOnly.getTime();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
       
       while (currentMin < endMin) {
         const h = Math.floor(currentMin / 60);
         const m = currentMin % 60;
         const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
         
-        if (!dayBookedSlots.includes(timeStr)) {
+        if (!dayBookedSlots.includes(timeStr) && (!isToday || currentMin >= nowMinutes)) {
           slots.push({ value: timeStr, label: timeStr });
         }
         currentMin += 30;
@@ -649,10 +658,20 @@ export default {
   },
   mounted() {
     this.fetchDashboardData();
+    this.fetchPatientProfile();
     this.fetchAppointments();
     this.fetchMedicalHistory();
   },
   methods: {
+    isPastDateTime(dateStr, timeStr) {
+      if (!dateStr || !timeStr) return false;
+
+      const normalizedTime = timeStr.slice(0, 5); // supports "HH:MM" and "HH:MM:SS"
+      const appointmentDateTime = new Date(`${dateStr}T${normalizedTime}:00`);
+      const now = new Date();
+      return appointmentDateTime < now;
+    },
+
     async fetchDashboardData() {
       try {
         const token = localStorage.getItem("token");
@@ -664,24 +683,35 @@ export default {
         // Only show specializations that have non-blacklisted doctors
         this.departments = response.data.specializations || [];
         
-        // Load profile form with patient data
-        this.profileForm = {
-          username: this.patient.name,
-          email: this.patient.email,
-          age: this.patient.age,
-          gender: this.patient.gender,
-          contact_number: this.patient.contact_number || "",
-          address: this.patient.address || "",
-          height: this.patient.height || "",
-          weight: this.patient.weight || ""
-        };
-        
         this.error = null;
       } catch (err) {
         this.error = "Failed to load dashboard data";
         console.error("Error fetching dashboard:", err);
       } finally {
         this.loading = false;
+      }
+    },
+
+    async fetchPatientProfile() {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await axios.get(`${API_BASE_URL}/api/patient/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        const profile = response.data.patient || {};
+        this.profileForm = {
+          username: profile.username || this.patient.name || "",
+          email: profile.email || this.patient.email || "",
+          age: profile.age ?? "",
+          gender: profile.gender || "",
+          contact_number: profile.contact_number || "",
+          address: profile.address || "",
+          height: profile.height ?? "",
+          weight: profile.weight ?? ""
+        };
+      } catch (err) {
+        console.error("Error fetching patient profile:", err);
       }
     },
 
@@ -780,7 +810,8 @@ export default {
       this.selectedSpecialization = "";
     },
 
-    openEditProfileModal() {
+    async openEditProfileModal() {
+      await this.fetchPatientProfile();
       this.showEditProfileModal = true;
     },
 
@@ -840,6 +871,21 @@ export default {
     },
 
     async submitProfileUpdate() {
+      const requiredFields = [
+        this.profileForm.username,
+        this.profileForm.email,
+        this.profileForm.age,
+        this.profileForm.gender,
+        this.profileForm.contact_number,
+        this.profileForm.height,
+        this.profileForm.weight
+      ];
+
+      if (requiredFields.some((field) => field === null || field === undefined || String(field).trim() === "")) {
+        alert("Please fill all required profile fields");
+        return;
+      }
+
       try {
         const token = localStorage.getItem("token");
         await axios.put(
@@ -869,6 +915,11 @@ export default {
     async bookAppointment() {
       if (!this.bookingForm.doctor_id || !this.bookingForm.date || !this.bookingForm.time) {
         alert("Please fill all required fields");
+        return;
+      }
+
+      if (this.isPastDateTime(this.bookingForm.date, this.bookingForm.time)) {
+        alert("You cannot book an appointment in a past time slot.");
         return;
       }
 
@@ -912,6 +963,11 @@ export default {
     async submitReschedule() {
       if (!this.rescheduleForm.date || !this.rescheduleForm.time) {
         alert("Please fill all required fields");
+        return;
+      }
+
+      if (this.isPastDateTime(this.rescheduleForm.date, this.rescheduleForm.time)) {
+        alert("You cannot reschedule to a past time slot.");
         return;
       }
 
@@ -1144,8 +1200,6 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #555;
-  font-size: 14px;
 }
 
 .export-status-row {
@@ -1159,14 +1213,6 @@ export default {
   border-radius: 8px;
   color: #334d6e;
   font-size: 14px;
-}
-
-.link-btn {
-  text-decoration: underline;
-}
-
-.link-btn:hover {
-  color: #333;
 }
 
 .department-list {

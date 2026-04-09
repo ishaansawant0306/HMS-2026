@@ -146,39 +146,66 @@ def update_profile():
         if not patient:
             return jsonify({'error': 'Patient profile not found'}), 404
         
-        data = request.get_json()
+        data = request.get_json() or {}
         
-        # Update allowed fields
+        # Update allowed fields (enforce non-null columns)
         if 'contact_number' in data:
-            patient.contact_number = data['contact_number'] or None
+            contact_number = str(data.get('contact_number', '')).strip()
+            if not contact_number:
+                return jsonify({'error': 'Contact number is required'}), 400
+            patient.contact_number = contact_number
+
         if 'address' in data:
-            patient.address = data['address'] or None
-        if 'age' in data and data['age'] != '':
+            address = data.get('address')
+            patient.address = str(address).strip() if address else None
+
+        if 'age' in data:
+            age_value = data.get('age')
+            if age_value in (None, ''):
+                return jsonify({'error': 'Age is required'}), 400
             try:
-                patient.age = int(data['age'])
+                patient.age = int(age_value)
             except (ValueError, TypeError):
                 return jsonify({'error': 'Invalid age value'}), 400
+
         if 'gender' in data:
-            patient.gender = data['gender'] or None
-        if 'height' in data and data['height'] != '':
+            gender = str(data.get('gender', '')).strip()
+            if not gender:
+                return jsonify({'error': 'Gender is required'}), 400
+            patient.gender = gender
+
+        if 'height' in data:
+            height_value = data.get('height')
+            if height_value in (None, ''):
+                return jsonify({'error': 'Height is required'}), 400
             try:
-                patient.height = int(data['height'])
+                patient.height = float(height_value)
             except (ValueError, TypeError):
                 return jsonify({'error': 'Invalid height value'}), 400
-        if 'weight' in data and data['weight'] != '':
+
+        if 'weight' in data:
+            weight_value = data.get('weight')
+            if weight_value in (None, ''):
+                return jsonify({'error': 'Weight is required'}), 400
             try:
-                patient.weight = int(data['weight'])
+                patient.weight = float(weight_value)
             except (ValueError, TypeError):
                 return jsonify({'error': 'Invalid weight value'}), 400
         
         # Update user fields if provided
-        if 'username' in data and data['username']:
-            patient.user.username = data['username']
-        if 'email' in data and data['email']:
+        if 'username' in data:
+            username = str(data.get('username', '')).strip()
+            if not username:
+                return jsonify({'error': 'Username is required'}), 400
+            patient.user.username = username
+        if 'email' in data:
+            email = str(data.get('email', '')).strip()
+            if not email:
+                return jsonify({'error': 'Email is required'}), 400
             # Check if email already exists
-            if User.query.filter(User.email == data['email'], User.id != current_user_id).first():
+            if User.query.filter(User.email == email, User.id != current_user_id).first():
                 return jsonify({'error': 'Email already in use'}), 400
-            patient.user.email = data['email']
+            patient.user.email = email
         
         db.session.commit()
         
@@ -279,11 +306,18 @@ def book_appointment():
         if doctor.is_blacklisted:
             return jsonify({'error': 'Doctor is not available'}), 400
         
+        appointment_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+        appointment_time = datetime.strptime(data['time'], '%H:%M').time()
+
+        # Block past date/time booking (including earlier slots on today)
+        if datetime.combine(appointment_date, appointment_time) < datetime.now():
+            return jsonify({'error': 'Cannot book appointments in the past'}), 400
+
         # Check for conflicting appointments
         existing_appointment = Appointment.query.filter(
             Appointment.doctor_id == data['doctor_id'],
-            Appointment.date == data['date'],
-            Appointment.time == data['time'],
+            Appointment.date == appointment_date,
+            Appointment.time == appointment_time,
             Appointment.status != 'Cancelled'
         ).first()
         
@@ -294,8 +328,8 @@ def book_appointment():
         appointment = Appointment(
             doctor_id=data['doctor_id'],
             patient_id=patient.id,
-            date=datetime.strptime(data['date'], '%Y-%m-%d').date(),
-            time=datetime.strptime(data['time'], '%H:%M').time(),
+            date=appointment_date,
+            time=appointment_time,
             status='Booked'
         )
         
@@ -373,11 +407,18 @@ def reschedule_appointment(appointment_id):
         if 'date' not in data or 'time' not in data:
             return jsonify({'error': 'Date and time are required'}), 400
         
+        new_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+        new_time = datetime.strptime(data['time'], '%H:%M').time()
+
+        # Block past date/time rescheduling (including earlier slots on today)
+        if datetime.combine(new_date, new_time) < datetime.now():
+            return jsonify({'error': 'Cannot reschedule to a past time'}), 400
+
         # Check for conflicting appointments
         existing_appointment = Appointment.query.filter(
             Appointment.doctor_id == appointment.doctor_id,
-            Appointment.date == datetime.strptime(data['date'], '%Y-%m-%d').date(),
-            Appointment.time == datetime.strptime(data['time'], '%H:%M').time(),
+            Appointment.date == new_date,
+            Appointment.time == new_time,
             Appointment.status != 'Cancelled',
             Appointment.id != appointment_id
         ).first()
@@ -385,8 +426,8 @@ def reschedule_appointment(appointment_id):
         if existing_appointment:
             return jsonify({'error': 'This time slot is already booked'}), 400
         
-        appointment.date = datetime.strptime(data['date'], '%Y-%m-%d').date()
-        appointment.time = datetime.strptime(data['time'], '%H:%M').time()
+        appointment.date = new_date
+        appointment.time = new_time
         
         db.session.commit()
         
