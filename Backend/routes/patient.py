@@ -302,6 +302,27 @@ def book_appointment():
         db.session.add(appointment)
         db.session.commit()
         
+        # Send instant Google Chat booking confirmation
+        webhook_url = os.environ.get('NOTIFICATION_WEBHOOK_URL')
+        if webhook_url:
+            try:
+                import requests as _req
+                patient_name = patient.user.username
+                doctor_name = doctor.user.username
+                appt_date = appointment.date.strftime('%A, %B %d, %Y')
+                appt_time = appointment.time.strftime('%I:%M %p')
+                msg = (
+                    f"🏥 *Appointment Booked - MediZentrum*\n"
+                    f"Patient: *{patient_name}*\n"
+                    f"Doctor: *Dr. {doctor_name}* ({doctor.specialization})\n"
+                    f"Date: *{appt_date}*\n"
+                    f"Time: *{appt_time}*\n"
+                    f"Please arrive 10 minutes early."
+                )
+                _req.post(webhook_url, json={"text": msg}, timeout=5)
+            except Exception:
+                pass  # Never block booking if webhook fails
+        
         # Clear patient cache to ensure updated appointments are shown immediately
         clear_patient_cache(current_user_id)
         
